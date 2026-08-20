@@ -120,23 +120,34 @@ async function loadExistingRuleReview() {
   }
 }
 
-async function runReview() {
+async function runAIReview(force, continuing = false) {
   reviewing.value = true
   error.value = ''
   warning.value = ''
   notice.value = ''
   try {
-    const data = await request(`/api/review${hasReviews.value ? '?force=1' : ''}`, { method: 'POST' })
+    const query = force ? '?force=1' : (continuing ? '?continue=1' : '')
+    const data = await request(`/api/review${query}`, { method: 'POST' })
     reviewMode.value = 'ai'
     reviews.value = data.reviews || []
     stats.value = data.stats || stats.value
     warning.value = data.warning || ''
-    notice.value = `已完成 ${stats.value.total} 个仓库：复用已有 review ${data.cached_count || 0} 个，AI 本次评审 ${data.ai_reviewed_count || 0} 个`
+    notice.value = continuing
+      ? `继续 AI 评审完成：跳过已有 ${data.cached_count || 0} 个，本次新增评审 ${data.ai_reviewed_count || 0} 个`
+      : `已完成 ${stats.value.total} 个仓库：复用已有 review ${data.cached_count || 0} 个，AI 本次评审 ${data.ai_reviewed_count || 0} 个`
   } catch (err) {
     error.value = err.message
   } finally {
     reviewing.value = false
   }
+}
+
+async function runReview() {
+  await runAIReview(hasReviews.value, false)
+}
+
+async function continueReview() {
+  await runAIReview(false, true)
 }
 
 async function runRuleReview() {
@@ -264,6 +275,9 @@ onMounted(async () => {
           <button class="button button-primary" :disabled="reviewing || !health?.github_configured || !health?.openrouter_configured || !stars.length" @click="runReview">
             <span v-if="reviewing" class="spinner"></span>
             <span>{{ reviewing ? 'AI 正在查看…' : (hasReviews ? '重新 AI 评审' : '开始 AI 评审') }}</span>
+          </button>
+          <button class="button button-outline" :disabled="reviewing || !health?.github_configured || !health?.openrouter_configured || !stars.length" @click="continueReview">
+            <span>{{ reviewing ? '等待 AI…' : '继续 AI 评审（跳过已有）' }}</span>
           </button>
           <button class="button button-outline" :disabled="ruleReviewing || !stars.length" @click="runRuleReview">
             <span v-if="ruleReviewing" class="spinner"></span>

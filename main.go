@@ -606,34 +606,60 @@ type RepositoryReview struct {
 }
 
 func ruleReview(repo Repository, config Config, now time.Time) RepositoryReview {
-	reasons := make([]string, 0, 3)
+	matchedReasons := make([]string, 0, 3)
 	statuses := make(map[string]bool)
 	for _, status := range strings.Split(config.RuleStatuses, ",") {
-		statuses[strings.ToLower(strings.TrimSpace(status))] = true
+		status = strings.ToLower(strings.TrimSpace(status))
+		if status != "" && status != "none" {
+			statuses[status] = true
+		}
 	}
-	if statuses["archived"] && repo.Archived {
-		reasons = append(reasons, "仓库已归档")
-	}
-	if statuses["disabled"] && repo.Disabled {
-		reasons = append(reasons, "仓库已被 GitHub 禁用")
+	enabledRules := 0
+	matchedRules := 0
+	if len(statuses) > 0 {
+		enabledRules++
+		statusMatched := (statuses["archived"] && repo.Archived) || (statuses["disabled"] && repo.Disabled)
+		if statusMatched {
+			matchedRules++
+			statusReasons := make([]string, 0, 2)
+			if statuses["archived"] && repo.Archived {
+				statusReasons = append(statusReasons, "仓库已归档")
+			}
+			if statuses["disabled"] && repo.Disabled {
+				statusReasons = append(statusReasons, "仓库已被 GitHub 禁用")
+			}
+			matchedReasons = append(matchedReasons, statusReasons...)
+		}
 	}
 	lastActivity := repo.PushedAt
 	if lastActivity.IsZero() {
 		lastActivity = repo.UpdatedAt
 	}
-	if config.RuleStaleDays > 0 && !lastActivity.IsZero() && !lastActivity.After(now) && now.Sub(lastActivity) >= time.Duration(config.RuleStaleDays)*24*time.Hour {
-		reasons = append(reasons, fmt.Sprintf("超过 %d 天未更新", config.RuleStaleDays))
+	if config.RuleStaleDays > 0 {
+		enabledRules++
+		if !lastActivity.IsZero() && !lastActivity.After(now) && now.Sub(lastActivity) >= time.Duration(config.RuleStaleDays)*24*time.Hour {
+			matchedRules++
+			matchedReasons = append(matchedReasons, fmt.Sprintf("超过 %d 天未更新", config.RuleStaleDays))
+		}
 	}
-	if config.RuleMaxStars > 0 && repo.StargazersCount < config.RuleMaxStars {
-		reasons = append(reasons, fmt.Sprintf("Star 少于 %d（当前 %d）", config.RuleMaxStars, repo.StargazersCount))
+	if config.RuleMaxStars > 0 {
+		enabledRules++
+		if repo.StargazersCount < config.RuleMaxStars {
+			matchedRules++
+			matchedReasons = append(matchedReasons, fmt.Sprintf("Star 少于 %d（当前 %d）", config.RuleMaxStars, repo.StargazersCount))
+		}
 	}
 	decision := "keep"
 	score := 0
-	summary := "未命中规则"
-	if len(reasons) > 0 {
+	reasons := []string(nil)
+	summary := "未同时命中配置规则"
+	if enabledRules == 0 {
+		summary = "没有启用规则"
+	} else if matchedRules == enabledRules {
 		decision = "unstar"
 		score = 100
-		summary = fmt.Sprintf("命中 %d 条规则", len(reasons))
+		reasons = matchedReasons
+		summary = fmt.Sprintf("同时命中 %d 条规则", enabledRules)
 	}
 	return RepositoryReview{
 		Repository: repo,
@@ -1028,6 +1054,10 @@ func (a *App) review(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	force := r.URL.Query().Get("force") == "1" || strings.EqualFold(r.URL.Query().Get("force"), "true")
+	continueOnly := r.URL.Query().Get("continue") == "1" || strings.EqualFold(r.URL.Query().Get("continue"), "true")
+	if continueOnly {
+		force = false
+	}
 	reviews, stats, cachedCount, aiReviewedCount, batchCount, warnings, err := a.reviewAll(r.Context(), force)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)

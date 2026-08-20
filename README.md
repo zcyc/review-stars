@@ -64,7 +64,7 @@ GET    /api/health
 GET    /api/stars             # 读取 SQLite 中已同步的仓库
 POST   /api/sync              # 从 GitHub 同步全部 Stars
 GET    /api/review
-POST   /api/review             # 仅 AI 分批评审；?force=1 强制全部重评
+POST   /api/review             # 仅 AI 分批评审；默认跳过已有；?force=1 强制全部重评
 GET    /api/rule-review
 POST   /api/rule-review        # 按 RULE_* 配置执行规则评审
 GET    /api/random
@@ -88,7 +88,7 @@ GitHub、OpenRouter 和 Telegram 请求都会输出响应日志，包含状态�
 
 `REVIEW_MAX_REPOS` 已不再使用，也不需要配置。现在的边界分别是：`REVIEW_BATCH_SIZE` 控制单次 AI 请求包含多少仓库，`REVIEW_COUNT` 控制定时 Telegram 回顾发送多少仓库；同步和评审范围默认都是全部 Stars。
 
-AI 评审不再使用规则兜底。OpenRouter 不可用时，AI 接口会直接返回错误；需要离线或低成本筛选时，单独运行“规则评审”。规则评审默认列出已归档、180 天未更新或 Star 少于 1000 的仓库，三类条件可以分别配置。
+AI 评审不再使用规则兜底。OpenRouter 不可用时，AI 接口会直接返回错误；需要离线或低成本筛选时，单独运行“规则评审”。规则评审默认列出同时满足“已归档、180 天未更新、Star 少于 1000”的仓库，三类条件可以分别配置。启用的条件组之间是 AND 关系，`RULE_STATUSES` 内的多个状态是 OR 关系。
 
 这是面向单用户/本机运行的 MVP，API 当前没有额外登录层。不要把它直接暴露到公网；如果需要多人使用，应在前面增加 OAuth、会话和权限控制。
 

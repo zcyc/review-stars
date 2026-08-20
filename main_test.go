@@ -72,6 +72,10 @@ func TestRuleReview(t *testing.T) {
 	if len(review.Reasons) == 0 {
 		t.Fatal("expected at least one reason")
 	}
+	partial := ruleReview(Repository{FullName: "acme/partial", Archived: true, StargazersCount: 5000, PushedAt: time.Now()}, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, time.Now())
+	if partial.Decision != "keep" || len(partial.Reasons) != 0 {
+		t.Fatalf("partially matched rules should not trigger: %#v", partial)
+	}
 }
 
 func TestMergeReviewsKeepsRepositoryData(t *testing.T) {
