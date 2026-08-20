@@ -1148,28 +1148,6 @@ func (a *App) randomRepository(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusNotFound, errors.New("还没有 AI 或规则评审结果，请先运行一种评审"))
 }
 
-func (a *App) remind(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		methodNotAllowed(w)
-		return
-	}
-	_, aiReviews, _ := a.store.snapshot()
-	ruleReviews, _ := a.store.ruleSnapshot()
-	reviews := preferredReviews(aiReviews, ruleReviews)
-	var selected RepositoryReview
-	if len(reviews) > 0 {
-		selected = reviews[rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(reviews))]
-	} else {
-		writeError(w, http.StatusNotFound, errors.New("还没有 AI 或规则评审结果，请先运行一种评审"))
-		return
-	}
-	if err := a.telegram.Send(r.Context(), selected); err != nil {
-		writeError(w, http.StatusBadGateway, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"repository": selected, "sent": true})
-}
-
 func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		methodNotAllowed(w)
@@ -1219,7 +1197,6 @@ func (a *App) handler() http.Handler {
 	mux.HandleFunc("/api/review", a.review)
 	mux.HandleFunc("/api/rule-review", a.ruleReviewHandler)
 	mux.HandleFunc("/api/random", a.randomRepository)
-	mux.HandleFunc("/api/remind", a.remind)
 	mux.HandleFunc("/", serveSPA)
 	return loggingMiddleware(mux)
 }

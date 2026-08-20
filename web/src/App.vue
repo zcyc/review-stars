@@ -12,7 +12,6 @@ const loadingStars = ref(false)
 const syncing = ref(false)
 const reviewing = ref(false)
 const ruleReviewing = ref(false)
-const reminding = ref(false)
 const busyRepo = ref('')
 const error = ref('')
 const warning = ref('')
@@ -179,20 +178,6 @@ async function pickRandom() {
   }
 }
 
-async function sendReminder() {
-  reminding.value = true
-  error.value = ''
-  try {
-    const data = await request('/api/remind', { method: 'POST' })
-    randomRepo.value = data.repository
-    notice.value = '已通过 Telegram 发出回顾提醒'
-  } catch (err) {
-    error.value = err.message
-  } finally {
-    reminding.value = false
-  }
-}
-
 async function unstar(repo) {
   if (!window.confirm(`确定取消 ${repo.full_name} 的 Star 吗？此操作会直接修改 GitHub。`)) return
   busyRepo.value = repo.full_name
@@ -330,9 +315,6 @@ onMounted(async () => {
           <div v-else class="random-placeholder"><span>✦</span><span>点击按钮抽取你的下一个回顾对象</span></div>
           <div class="random-actions">
             <button class="button button-dark" @click="pickRandom">抽一个</button>
-            <button class="button button-outline" :disabled="reminding" @click="sendReminder">
-              {{ reminding ? '发送中…' : '✈ Telegram 提醒' }}
-            </button>
           </div>
         </article>
 
@@ -341,7 +323,7 @@ onMounted(async () => {
           <h2>把清理变成轻量习惯</h2>
           <div class="how-row"><span class="how-number">01</span><div><strong>AI 先看信号</strong><p>归档、活跃度、项目类型与上下文一起判断。</p></div></div>
           <div class="how-row"><span class="how-number">02</span><div><strong>你来做最后决定</strong><p>建议永远不会自动取消 Star，操作权在你手上。</p></div></div>
-          <div class="how-row"><span class="how-number">03</span><div><strong>Telegram 负责提醒</strong><p>随机挑一个仓库，在你方便时把它带回来。</p></div></div>
+          <div class="how-row"><span class="how-number">03</span><div><strong>Cron 定时提醒</strong><p>后台按计划随机挑选仓库，发送回顾消息到 Telegram。</p></div></div>
         </article>
       </section>
 

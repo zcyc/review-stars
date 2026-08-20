@@ -38,7 +38,7 @@ make build
 - `GITHUB_TOKEN`：GitHub fine-grained PAT。需要 `Starring: read`；如果要使用页面里的“取消 Star”，需要 `Starring: read and write`。
 - `OPENROUTER_API_KEY`：OpenRouter API key。默认使用 `openrouter/free` 免费模型路由。
 - `OPENROUTER_MODEL`：可替换为任意可用模型，默认 `openrouter/free`。
-- `TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`：配置后启用 Telegram 提醒；不配置时其余功能仍可使用。
+- `TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`：配置后启用 cron Telegram 后台提醒；不配置时其余功能仍可使用。
 - `DATABASE_FILE`：SQLite 数据库路径，默认 `review-stars.db`。保存全部同步到的仓库和 review 结果。
 - `REVIEW_BATCH_SIZE`：每次发送给 AI 的仓库数，默认 20。程序会加载全部 Stars，再按批次请求 AI。
 - `REVIEW_CRON`：可选的 5 段 cron 表达式，也支持 `@every 24h`。配置后按计划从 SQLite 中随机抽取仓库发送 Telegram 回顾；不会因为定时任务自动请求 GitHub。
@@ -68,7 +68,6 @@ POST   /api/review             # 仅 AI 分批评审；默认跳过已有；?for
 GET    /api/rule-review
 POST   /api/rule-review        # 按 RULE_* 配置执行规则评审
 GET    /api/random
-POST   /api/remind
 DELETE /api/stars/:owner/:repo
 ```
 
