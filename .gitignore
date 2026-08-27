@@ -1,0 +1,8 @@
+.env
+review-stars
+review-stars.db
+review-stars.db-*
+web/node_modules/
+web/dist/
+*.log
+.DS_Store
