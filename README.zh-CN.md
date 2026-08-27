@@ -1,10 +1,24 @@
 # Review Stars
 
+<p align="center">
+  <img src="assets/logo.svg" alt="Review Stars logo" width="96">
+</p>
+
 Review Stars 把 GitHub Stars 变成可执行的整理清单：同步 Star 仓库，通过 OpenAI 兼容接口判断哪些 Star 可能已经不值得保留并给出原因，然后通过 Telegram 定时发送随机仓库回顾提醒。
 
 前端使用 Vue 3 + Vite，后端使用 Go。生产构建会把 `web/dist` 嵌入 Go 二进制，因此部署时只需要一个可执行文件。仓库元数据和评审结果保存在 SQLite 中。
 
 English documentation: [README.md](README.md)
+
+本项目采用 [GNU Affero General Public License v3.0](LICENSE) 授权。
+
+## 页面截图
+
+<p align="center">
+  <img src="assets/screenshot.jpg" alt="Review Stars 页面" width="960">
+</p>
+
+截图使用的是脱敏示例仓库数据。
 
 ## 快速开始
 

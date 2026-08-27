@@ -1,10 +1,24 @@
 # Review Stars
 
+<p align="center">
+  <img src="assets/logo.svg" alt="Review Stars logo" width="96">
+</p>
+
 Review Stars turns a GitHub Stars collection into an actionable list. It syncs starred repositories, asks an OpenAI-compatible AI API which stars may no longer be worth keeping, records the reasons, and sends scheduled random repository reminders through Telegram.
 
 The frontend uses Vue 3 + Vite and the backend uses Go. Production builds embed `web/dist` into the Go binary, so deployment only needs one executable. Repository metadata and review results are stored in SQLite.
 
 [简体中文](README.zh-CN.md)
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+## Screenshot
+
+<p align="center">
+  <img src="assets/screenshot.jpg" alt="Review Stars dashboard" width="960">
+</p>
+
+The screenshot uses illustrative repository data.
 
 ## Quick start
 
