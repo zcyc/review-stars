@@ -4,7 +4,7 @@ Review Stars turns a GitHub Stars collection into an actionable list. It syncs s
 
 The frontend uses Vue 3 + Vite and the backend uses Go. Production builds embed `web/dist` into the Go binary, so deployment only needs one executable. Repository metadata and review results are stored in SQLite.
 
-中文文档：[README.zh-CN.md](README.zh-CN.md)
+[简体中文](README.zh-CN.md)
 
 ## Quick start
 
