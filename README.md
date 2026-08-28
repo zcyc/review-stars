@@ -1,7 +1,7 @@
 # Review Stars
 
 <p align="center">
-  <img src="assets/logo.svg" alt="Review Stars logo" width="96">
+  <img src="assets/logo.svg" alt="Review Stars logo" width="256">
 </p>
 
 Review Stars turns a GitHub Stars collection into an actionable list. It syncs starred repositories, asks an OpenAI-compatible AI API which stars may no longer be worth keeping, records the reasons, and sends scheduled random repository reminders through Telegram.
