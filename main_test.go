@@ -232,6 +232,41 @@ func TestUnstarArchivedRepositoryReturnsStarsSearch(t *testing.T) {
 	}
 }
 
+func TestUnstarPermissionErrorReturnsManualStarsLink(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete || r.URL.Path != "/user/starred/acme/demo" {
+			t.Fatalf("unexpected GitHub request: %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Accept"); got != "application/vnd.github+json" {
+			t.Errorf("Accept = %q, want application/vnd.github+json", got)
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message":"Resource not accessible by personal access token","status":"403"}`))
+	}))
+	defer server.Close()
+
+	store := &Store{}
+	store.setData([]Repository{{FullName: "acme/demo"}}, nil)
+	app := &App{github: &GitHubClient{baseURL: server.URL, token: "test", http: server.Client()}, store: store}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/api/stars/acme/demo", nil)
+
+	app.unstar(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("permission error status = %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+	var response struct {
+		Error    string `json:"error"`
+		StarsURL string `json:"stars_url"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(response.Error, "Starring") || response.StarsURL != "https://github.com/stars?q=acme%2Fdemo" {
+		t.Fatalf("unexpected permission response: %#v", response)
+	}
+}
+
 func TestStatsFor(t *testing.T) {
 	reviews := []RepositoryReview{{Decision: "unstar"}, {Decision: "review"}, {Decision: "keep"}, {Decision: "keep"}}
 	got := statsFor(reviews)

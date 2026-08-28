@@ -201,6 +201,20 @@ type GitHubClient struct {
 	http    *http.Client
 }
 
+type githubAPIError struct {
+	status     int
+	statusText string
+	body       string
+}
+
+func (e *githubAPIError) Error() string {
+	return fmt.Sprintf("github API %s: %s", e.statusText, strings.TrimSpace(e.body))
+}
+
+func (e *githubAPIError) isStarPermissionError() bool {
+	return e.status == http.StatusForbidden && strings.Contains(e.body, "Resource not accessible by personal access token")
+}
+
 func (c *GitHubClient) request(ctx context.Context, method, endpoint string, result any) error {
 	body, err := c.requestBytes(ctx, method, endpoint)
 	if err != nil {
@@ -220,8 +234,12 @@ func (c *GitHubClient) requestBytes(ctx context.Context, method, endpoint string
 		logExternalError("github", method, target, started, err)
 		return nil, err
 	}
-	// The star media type adds starred_at to each repository item.
-	req.Header.Set("Accept", "application/vnd.github.star+json")
+	if method == http.MethodGet && strings.HasPrefix(endpoint, "/user/starred?") {
+		// The star media type adds starred_at to each repository item.
+		req.Header.Set("Accept", "application/vnd.github.star+json")
+	} else {
+		req.Header.Set("Accept", "application/vnd.github+json")
+	}
 	req.Header.Set("X-GitHub-Api-Version", githubAPIVersion)
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
@@ -236,7 +254,7 @@ func (c *GitHubClient) requestBytes(ctx context.Context, method, endpoint string
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
 		logExternalResponse("github", method, target, resp.StatusCode, started, body)
-		return nil, fmt.Errorf("github API %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		return nil, &githubAPIError{status: resp.StatusCode, statusText: resp.Status, body: string(body)}
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -1218,12 +1236,21 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 	repos, _, _ := a.store.snapshot()
 	for _, repo := range repos {
 		if repo.FullName == fullName && repo.Archived {
-			starsURL := "https://github.com/stars?q=" + url.QueryEscape(fullName)
+			starsURL := githubStarsURL(fullName)
 			writeJSON(w, http.StatusConflict, map[string]any{"error": "archived repositories must be unstarred from GitHub Stars", "stars_url": starsURL})
 			return
 		}
 	}
 	if err := a.github.Unstar(r.Context(), fullName); err != nil {
+		var githubErr *githubAPIError
+		if errors.As(err, &githubErr) && githubErr.isStarPermissionError() {
+			starsURL := githubStarsURL(fullName)
+			writeJSON(w, http.StatusForbidden, map[string]any{
+				"error":     "GitHub token needs Starring: read and write plus Metadata: read to remove Stars",
+				"stars_url": starsURL,
+			})
+			return
+		}
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}
@@ -1234,6 +1261,10 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"removed": fullName})
+}
+
+func githubStarsURL(fullName string) string {
+	return "https://github.com/stars?q=" + url.QueryEscape(fullName)
 }
 
 func (a *App) health(w http.ResponseWriter, r *http.Request) {

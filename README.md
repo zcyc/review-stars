@@ -48,7 +48,7 @@ make build
 
 ## Configuration
 
-- `GITHUB_TOKEN`: GitHub fine-grained PAT. It needs `Starring: read`; the page's **Unstar** action also needs `Starring: read and write`.
+- `GITHUB_TOKEN`: GitHub fine-grained PAT. It needs `Starring: read` and repository `Metadata: read`; the page's **Unstar** action also needs `Starring: read and write`. The token must be allowed to access the repositories being starred.
 - `AI_API_KEY`: API key for the configured OpenAI-compatible provider.
 - `AI_BASE_URL`: provider base URL. `/chat/completions` is appended automatically. The DeepSeek example is `https://api.deepseek.com`.
 - `AI_MODEL`: model name supported by that provider, for example `deepseek-v4-flash`.

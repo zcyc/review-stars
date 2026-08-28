@@ -18,7 +18,7 @@ const messages = {
     repoListTitle: '仓库清单',
     searchPlaceholder: '搜索仓库…', all: '全部状态', unstarFilter: '建议取消', reviewFilter: '需要回顾', keepFilter: '建议保留',
     loadingStars: '正在读取本地仓库数据…', noStarsTitle: '还没有同步仓库', noStarsText: '点击上方“同步仓库”从 GitHub 获取全部 Stars。', noMatches: '没有匹配的仓库', noReview: '还没有评审结果', noMatchesText: '试试换一个搜索词或状态筛选。', startReviewHint: '点击上方“开始 AI 评审”。',
-    noDescription: '这个仓库没有提供描述。', archived: '已归档', active: '未归档', fork: 'FORK', starredAt: '收藏于 {{date}}', openRepoTitle: '打开仓库', unstarAction: '取消 Star', findArchived: '手动取消 Star',
+    noDescription: '这个仓库没有提供描述。', archived: '已归档', active: '未归档', fork: 'FORK', starredAt: '收藏于 {{date}}', openRepoTitle: '打开仓库', openStars: '打开 GitHub Stars', unstarAction: '取消 Star', findArchived: '手动取消 Star',
     decisionUnstar: '建议取消', decisionReview: '需要回顾', decisionKeep: '建议保留', pendingDecision: '待评审', confirmUnstar: '确定取消 {{repo}} 的 Star 吗？此操作会直接修改 GitHub。', archivedOpenStars: '{{repo}} 已归档，已打开 GitHub Stars 搜索，请在那里手动取消 Star。', unstarDone: '已取消 {{repo}} 的 Star',
     unknownDate: '未知', unknownUpdated: '更新时间未知', recentlyUpdated: '最近更新', todayActive: '今天有活动', daysAgo: '{{count}} 天前更新', monthsAgo: '{{count}} 个月前更新', yearsAgo: '{{count}} 年前更新', requestFailed: '请求失败（{{status}}）', switchToLight: '切换到亮色模式', switchToDark: '切换到暗色模式',
   },
@@ -29,7 +29,7 @@ const messages = {
     statCollected: 'Starred repositories', statCollectedFoot: 'Synced from GitHub', statUnstar: 'Suggested to unstar', statUnstarAI: 'AI and rule recommendations', statReview: 'Needs a human look', statReviewFoot: 'Worth opening once', statKeep: 'Suggested to keep', statKeepFoot: 'Still useful in your collection',
     randomTitle: 'Random repository recall', randomEmpty: 'Pick your next repositories to revisit', randomCount: 'Count', draw: 'Pick', repoListTitle: 'Repository list',
     searchPlaceholder: 'Search repositories…', all: 'All statuses', unstarFilter: 'Suggested to unstar', reviewFilter: 'Needs review', keepFilter: 'Suggested to keep', loadingStars: 'Reading local repository data…', noStarsTitle: 'No repositories synced', noStarsText: 'Click “Sync repositories” above to load all of your GitHub Stars.', noMatches: 'No matching repositories', noReview: 'No review results yet', noMatchesText: 'Try another search term or status filter.', startReviewHint: 'Use “Start AI review” above.',
-    noDescription: 'This repository has no description.', archived: 'ARCHIVED', active: 'ACTIVE', fork: 'FORK', starredAt: 'Starred {{date}}', openRepoTitle: 'Open repository', unstarAction: 'Unstar', findArchived: 'Remove Star manually', decisionUnstar: 'Suggested to unstar', decisionReview: 'Needs review', decisionKeep: 'Suggested to keep', pendingDecision: 'Pending review', confirmUnstar: 'Unstar {{repo}}? This will modify GitHub directly.', archivedOpenStars: '{{repo}} is archived. GitHub Stars search was opened; remove the Star there manually.', unstarDone: 'Unstarred {{repo}}',
+    noDescription: 'This repository has no description.', archived: 'ARCHIVED', active: 'ACTIVE', fork: 'FORK', starredAt: 'Starred {{date}}', openRepoTitle: 'Open repository', openStars: 'Open GitHub Stars', unstarAction: 'Unstar', findArchived: 'Remove Star manually', decisionUnstar: 'Suggested to unstar', decisionReview: 'Needs review', decisionKeep: 'Suggested to keep', pendingDecision: 'Pending review', confirmUnstar: 'Unstar {{repo}}? This will modify GitHub directly.', archivedOpenStars: '{{repo}} is archived. GitHub Stars search was opened; remove the Star there manually.', unstarDone: 'Unstarred {{repo}}',
     unknownDate: 'Unknown', unknownUpdated: 'Update date unknown', recentlyUpdated: 'Recently updated', todayActive: 'Active today', daysAgo: 'Updated {{count}} days ago', monthsAgo: 'Updated {{count}} months ago', yearsAgo: 'Updated {{count}} years ago', requestFailed: 'Request failed ({{status}})', switchToLight: 'Switch to light mode', switchToDark: 'Switch to dark mode',
   },
 }
@@ -91,6 +91,7 @@ const syncing = ref(false)
 const reviewing = ref(false)
 const busyRepo = ref('')
 const error = ref('')
+const errorLink = ref('')
 const warning = ref('')
 const notice = ref('')
 const query = ref('')
@@ -121,7 +122,12 @@ const hasReviews = computed(() => reviews.value.length > 0)
 async function request(path, options = {}) {
   const response = await fetch(path, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || t('requestFailed', { status: response.status }))
+  if (!response.ok) {
+    const requestError = new Error(body.error || t('requestFailed', { status: response.status }))
+    requestError.status = response.status
+    requestError.body = body
+    throw requestError
+  }
   return body
 }
 
@@ -132,6 +138,7 @@ async function loadHealth() {
     language.value = data.language || 'zh-CN'
     document.documentElement.lang = language.value === 'en' ? 'en' : 'zh-CN'
   } catch (err) {
+    errorLink.value = ''
     error.value = err.message
   }
 }
@@ -143,6 +150,7 @@ async function loadStars() {
     const data = await request('/api/stars')
     stars.value = data.repositories || []
   } catch (err) {
+    errorLink.value = ''
     error.value = err.message
   } finally {
     loadingStars.value = false
@@ -152,6 +160,7 @@ async function loadStars() {
 async function syncStars() {
   syncing.value = true
   error.value = ''
+  errorLink.value = ''
   warning.value = ''
   notice.value = ''
   try {
@@ -162,6 +171,7 @@ async function syncStars() {
     aiComplete.value = Boolean(data.ai_complete)
     notice.value = t('syncNotice', { count: stars.value.length })
   } catch (err) {
+    errorLink.value = ''
     error.value = err.message
   } finally {
     syncing.value = false
@@ -182,6 +192,7 @@ async function loadExistingReview() {
 async function runAIReview(continuing = false) {
   reviewing.value = true
   error.value = ''
+  errorLink.value = ''
   warning.value = ''
   notice.value = ''
   try {
@@ -195,6 +206,7 @@ async function runAIReview(continuing = false) {
       ? t('continueNotice', { rules: data.rule_matched_count || 0, cached: data.cached_count || 0, reviewed: data.ai_reviewed_count || 0 })
       : t('aiNotice', { total: stats.value.total, rules: data.rule_matched_count || 0, cached: data.cached_count || 0, reviewed: data.ai_reviewed_count || 0 })
   } catch (err) {
+    errorLink.value = ''
     error.value = err.message
   } finally {
     reviewing.value = false
@@ -209,17 +221,22 @@ async function continueReview() {
 
 async function pickRandom() {
   error.value = ''
+  errorLink.value = ''
   try {
     const count = Math.max(1, Number(randomCount.value) || 1)
     randomCount.value = count
     const data = await request(`/api/random?count=${encodeURIComponent(count)}`)
     randomRepos.value = data.repositories || []
   } catch (err) {
+    errorLink.value = ''
     error.value = err.message
   }
 }
 
 async function unstar(repo) {
+  error.value = ''
+  errorLink.value = ''
+  notice.value = ''
   if (repo.archived) {
     const target = `https://github.com/stars?q=${encodeURIComponent(repo.full_name)}`
     window.open(target, '_blank', 'noopener,noreferrer')
@@ -228,7 +245,6 @@ async function unstar(repo) {
   }
   if (!window.confirm(t('confirmUnstar', { repo: repo.full_name }))) return
   busyRepo.value = repo.full_name
-  error.value = ''
   try {
     await request(`/api/stars/${encodeURIComponent(repo.full_name)}`, { method: 'DELETE' })
     stars.value = stars.value.filter(item => item.full_name !== repo.full_name)
@@ -239,6 +255,9 @@ async function unstar(repo) {
     notice.value = t('unstarDone', { repo: repo.full_name })
   } catch (err) {
     error.value = err.message
+    if (err.status === 403 && err.body?.stars_url) {
+      errorLink.value = err.body.stars_url
+    }
   } finally {
     busyRepo.value = ''
   }
@@ -295,7 +314,7 @@ onBeforeUnmount(() => colorSchemeMedia?.removeEventListener('change', handleSyst
         </div>
       </section>
 
-      <div v-if="error" class="alert alert-error"><span>!</span>{{ error }}</div><div v-if="warning" class="alert alert-warning"><span>△</span>{{ warning }}</div><div v-if="notice" class="alert alert-success"><span>✓</span>{{ notice }}</div>
+      <div v-if="error" class="alert alert-error"><span>!</span>{{ error }}<a v-if="errorLink" :href="errorLink" target="_blank" rel="noreferrer">{{ t('openStars') }}</a></div><div v-if="warning" class="alert alert-warning"><span>△</span>{{ warning }}</div><div v-if="notice" class="alert alert-success"><span>✓</span>{{ notice }}</div>
 
       <section class="stats-grid">
         <article class="stat-card stat-total"><div class="stat-label">{{ t('statCollected') }}</div><div class="stat-value">{{ stats.total || stars.length }}</div><div class="stat-foot">{{ t('statCollectedFoot') }}</div></article>
@@ -317,7 +336,7 @@ onBeforeUnmount(() => colorSchemeMedia?.removeEventListener('change', handleSyst
         <div v-if="loadingStars" class="empty-state"><span class="spinner spinner-dark"></span><p>{{ t('loadingStars') }}</p></div>
         <div v-else-if="!stars.length" class="empty-state"><div class="empty-icon">☆</div><h3>{{ t('noStarsTitle') }}</h3><p>{{ t('noStarsText') }}</p></div>
         <div v-else-if="!visibleReviews.length" class="empty-state"><div class="empty-icon">⌕</div><h3>{{ reviews.length ? t('noMatches') : t('noReview') }}</h3><p>{{ reviews.length ? t('noMatchesText') : t('startReviewHint') }}</p></div>
-        <div v-else class="repo-list"><article v-for="repo in visibleReviews" :key="repo.full_name" class="repo-row"><div class="repo-main"><div class="repo-avatar repo-avatar-large">{{ repo.name?.slice(0, 1).toUpperCase() }}</div><div class="repo-copy"><div class="repo-title-line"><a :href="repo.html_url" target="_blank" rel="noreferrer">{{ repo.full_name }}</a><span v-if="repo.archived" class="tiny-tag">{{ t('archived') }}</span><span v-if="repo.fork" class="tiny-tag">{{ t('fork') }}</span></div><p>{{ repo.description || t('noDescription') }}</p><div class="repo-meta"><span v-if="repo.language"><i class="language-dot"></i>{{ repo.language }}</span><span>★ {{ formatNumber(repo.stargazers_count) }}</span><span>{{ relativeDate(repo.pushed_at) }}</span><span :class="['archive-state', { archived: repo.archived }]">{{ repo.archived ? t('archived') : t('active') }}</span><span v-if="repo.starred_at">{{ t('starredAt', { date: formatDate(repo.starred_at) }) }}</span></div></div></div><div class="repo-review"><div class="review-topline"><span class="decision-pill" :class="decisionClass(repo.decision)">{{ decisionLabel(repo.decision) }}</span><span class="score">{{ repo.score }}%</span></div><p class="review-summary">{{ repo.summary }}</p><div class="reason-list"><span v-for="reason in repo.reasons?.slice(0, 2)" :key="reason">{{ reason }}</span></div></div><div class="repo-actions"><a class="icon-button" :href="repo.html_url" target="_blank" rel="noreferrer" :title="t('openRepoTitle')">↗</a><button v-if="repo.decision === 'unstar'" class="remove-button" :disabled="busyRepo === repo.full_name" @click="unstar(repo)">{{ busyRepo === repo.full_name ? '…' : (repo.archived ? t('findArchived') : t('unstarAction')) }}</button></div></article></div>
+        <div v-else class="repo-list"><article v-for="repo in visibleReviews" :key="repo.full_name" class="repo-row"><div class="repo-main"><div class="repo-avatar repo-avatar-large">{{ repo.name?.slice(0, 1).toUpperCase() }}</div><div class="repo-copy"><div class="repo-title-line"><a :href="repo.html_url" target="_blank" rel="noreferrer">{{ repo.full_name }}</a><span v-if="repo.archived" class="tiny-tag">{{ t('archived') }}</span><span v-if="repo.fork" class="tiny-tag">{{ t('fork') }}</span></div><p>{{ repo.description || t('noDescription') }}</p><div class="repo-meta"><span v-if="repo.language"><i class="language-dot"></i>{{ repo.language }}</span><span>★ {{ formatNumber(repo.stargazers_count) }}</span><span>{{ relativeDate(repo.pushed_at) }}</span><span :class="['archive-state', { archived: repo.archived }]">{{ repo.archived ? t('archived') : t('active') }}</span><span v-if="repo.starred_at">{{ t('starredAt', { date: formatDate(repo.starred_at) }) }}</span></div></div></div><div class="repo-review"><div class="review-topline"><span class="decision-pill" :class="decisionClass(repo.decision)">{{ decisionLabel(repo.decision) }}</span><span class="score">{{ repo.score }}%</span></div><p class="review-summary">{{ repo.summary }}</p><div class="reason-list"><span v-for="reason in repo.reasons?.slice(0, 2)" :key="reason">{{ reason }}</span></div></div><div class="repo-actions"><a class="icon-button" :href="repo.html_url" target="_blank" rel="noreferrer" :title="t('openRepoTitle')">↗</a><button class="remove-button" :disabled="busyRepo === repo.full_name" @click="unstar(repo)">{{ busyRepo === repo.full_name ? '…' : (repo.archived ? t('findArchived') : t('unstarAction')) }}</button></div></article></div>
       </section>
     </main>
     <footer class="footer"><span>REVIEW/STARS</span><span>GitHub × AI × Telegram</span></footer>

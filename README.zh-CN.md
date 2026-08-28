@@ -48,7 +48,7 @@ make build
 
 ## 配置
 
-- `GITHUB_TOKEN`：GitHub fine-grained PAT。需要 `Starring: read`；如果要使用页面里的“取消 Star”，还需要 `Starring: read and write`。
+- `GITHUB_TOKEN`：GitHub fine-grained PAT。需要用户权限 `Starring: read` 和仓库权限 `Metadata: read`；如果要使用页面里的“取消 Star”，还需要 `Starring: read and write`。Token 的资源范围还必须包含这些 Star 仓库。
 - `AI_API_KEY`：配置的 OpenAI 兼容 AI 服务的 API key。
 - `AI_BASE_URL`：服务商的 base URL，程序会自动追加 `/chat/completions`。DeepSeek 示例为 `https://api.deepseek.com`。
 - `AI_MODEL`：服务商支持的模型名，例如 `deepseek-v4-flash`。
