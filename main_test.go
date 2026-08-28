@@ -216,19 +216,24 @@ func TestAIReviewCompleteRequiresAllRepositoriesInConfiguredLanguage(t *testing.
 	}
 }
 
-func TestUnstarArchivedRepositoryReturnsStarsSearch(t *testing.T) {
+func TestUnstarArchivedRepositoryUsesGitHubAPI(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete || r.URL.Path != "/user/starred/acme/old" {
+			t.Fatalf("unexpected GitHub request: %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
 	store := &Store{}
 	store.setData([]Repository{{FullName: "acme/old", Archived: true}}, nil)
-	app := &App{store: store}
+	app := &App{github: &GitHubClient{baseURL: server.URL, token: "test", http: server.Client()}, store: store}
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodDelete, "/api/stars/acme/old", nil)
 
 	app.unstar(recorder, request)
-	if recorder.Code != http.StatusConflict {
-		t.Fatalf("archived unstar status = %d, want %d", recorder.Code, http.StatusConflict)
-	}
-	if !strings.Contains(recorder.Body.String(), "https://github.com/stars?q=acme%2Fold") {
-		t.Fatalf("archived unstar response did not include Stars search URL: %s", recorder.Body.String())
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("archived unstar status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 }
 

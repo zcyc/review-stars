@@ -1233,14 +1233,6 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 	}
 	fullName := strings.TrimPrefix(r.URL.Path, "/api/stars/")
 	fullName, _ = url.PathUnescape(fullName)
-	repos, _, _ := a.store.snapshot()
-	for _, repo := range repos {
-		if repo.FullName == fullName && repo.Archived {
-			starsURL := githubStarsURL(fullName)
-			writeJSON(w, http.StatusConflict, map[string]any{"error": "archived repositories must be unstarred from GitHub Stars", "stars_url": starsURL})
-			return
-		}
-	}
 	if err := a.github.Unstar(r.Context(), fullName); err != nil {
 		var githubErr *githubAPIError
 		if errors.As(err, &githubErr) && githubErr.isStarPermissionError() {
