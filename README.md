@@ -15,7 +15,7 @@ Licensed under the [GNU Affero General Public License v3.0](LICENSE).
 ## Screenshot
 
 <p align="center">
-  <img src="assets/screenshot.jpg" alt="Review Stars dashboard" width="960">
+  <img src="assets/screenshot.png" alt="Review Stars dashboard" width="960">
 </p>
 
 The screenshot uses illustrative repository data.
@@ -28,13 +28,10 @@ Requirements: Go 1.22+, Node.js 20+, and npm.
 cp .env.example .env
 # Edit .env and set at least GITHUB_TOKEN and AI_API_KEY
 
-cd web
-npm install
-npm run build
-cd ..
-
-go run .
+make
 ```
+
+`make` installs frontend dependencies, builds the frontend, compiles the Go server, and starts the complete application. You can also use `make start`.
 
 The application loads `.env` from the project root. An already-exported shell variable has priority over the file.
 
@@ -42,7 +39,7 @@ Open <http://localhost:8080>.
 
 Startup only loads data from SQLite; it does not sync GitHub automatically. Click **Sync repositories** for the first sync or whenever the Stars list needs refreshing. The sync loads all Stars and reuses reviews whose repository metadata has not changed.
 
-Build a single executable with:
+Build a single executable without starting it with:
 
 ```bash
 make build

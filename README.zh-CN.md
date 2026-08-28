@@ -15,7 +15,7 @@ English documentation: [README.md](README.md)
 ## 页面截图
 
 <p align="center">
-  <img src="assets/screenshot.jpg" alt="Review Stars 页面" width="960">
+  <img src="assets/screenshot.png" alt="Review Stars 页面" width="960">
 </p>
 
 截图使用的是脱敏示例仓库数据。
@@ -28,13 +28,10 @@ English documentation: [README.md](README.md)
 cp .env.example .env
 # 编辑 .env，至少配置 GITHUB_TOKEN 和 AI_API_KEY
 
-cd web
-npm install
-npm run build
-cd ..
-
-go run .
+make
 ```
+
+`make` 会自动安装前端依赖、构建前端、编译并启动完整应用；也可以使用 `make start`。
 
 程序会自动读取项目根目录的 `.env`；如果 shell 中已经导出了同名变量，shell 变量优先。
 
@@ -42,7 +39,7 @@ go run .
 
 程序启动时只从 SQLite 加载已有数据，不会自动同步 GitHub。首次启动或需要刷新 Star 列表时，点击“同步仓库”；它会加载全部 Stars，并复用仓库元数据未变化的 review。
 
-也可以直接构建单文件：
+也可以只构建单文件：
 
 ```bash
 make build
