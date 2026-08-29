@@ -6,7 +6,7 @@
 
 Review Stars turns a GitHub Stars collection into an actionable list. It syncs starred repositories, asks an OpenAI-compatible AI API which stars may no longer be worth keeping, records the reasons, and sends scheduled random repository reminders through Telegram.
 
-The frontend uses Vue 3 + Vite and the backend uses Go. Production builds embed `web/dist` into the Go binary, so deployment only needs one executable. Repository metadata and review results are stored in SQLite.
+The frontend uses plain HTML, CSS, and JavaScript; the backend uses Go. The static frontend is embedded into the Go binary, so deployment only needs one executable. Repository metadata and review results are stored in SQLite.
 
 [简体中文](README.zh-CN.md)
 
@@ -22,7 +22,7 @@ The screenshot uses illustrative repository data.
 
 ## Quick start
 
-Requirements: Go 1.22+, Node.js 20+, and npm.
+Requirement: Go 1.22+.
 
 ```bash
 cp .env.example .env
@@ -31,7 +31,7 @@ cp .env.example .env
 make
 ```
 
-`make` installs frontend dependencies, builds the frontend, compiles the Go server, and starts the complete application. You can also use `make start`.
+`make` compiles and starts the complete application. You can also use `make start`.
 
 The application loads `.env` from the project root. An already-exported shell variable has priority over the file.
 

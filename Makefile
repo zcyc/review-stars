@@ -1,17 +1,14 @@
 .DEFAULT_GOAL := start
 
-.PHONY: start dev build build-frontend test clean
+.PHONY: start dev build test clean
 
 start: build
 	./review-stars
 
 dev:
-	cd web && npm run dev
+	go run .
 
-build-frontend:
-	cd web && npm install && npm run build
-
-build: build-frontend
+build:
 	go build -o review-stars .
 
 test:

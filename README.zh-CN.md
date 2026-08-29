@@ -6,7 +6,7 @@
 
 Review Stars 把 GitHub Stars 变成可执行的整理清单：同步 Star 仓库，通过 OpenAI 兼容接口判断哪些 Star 可能已经不值得保留并给出原因，然后通过 Telegram 定时发送随机仓库回顾提醒。
 
-前端使用 Vue 3 + Vite，后端使用 Go。生产构建会把 `web/dist` 嵌入 Go 二进制，因此部署时只需要一个可执行文件。仓库元数据和评审结果保存在 SQLite 中。
+前端使用原生 HTML、CSS 和 JavaScript，后端使用 Go。静态前端会嵌入 Go 二进制，因此部署时只需要一个可执行文件。仓库元数据和评审结果保存在 SQLite 中。
 
 English documentation: [README.md](README.md)
 
@@ -22,7 +22,7 @@ English documentation: [README.md](README.md)
 
 ## 快速开始
 
-需要 Go 1.22+、Node.js 20+ 和 npm。
+需要 Go 1.22+。
 
 ```bash
 cp .env.example .env
@@ -31,7 +31,7 @@ cp .env.example .env
 make
 ```
 
-`make` 会自动安装前端依赖、构建前端、编译并启动完整应用；也可以使用 `make start`。
+`make` 会编译并启动完整应用；也可以使用 `make start`。
 
 程序会自动读取项目根目录的 `.env`；如果 shell 中已经导出了同名变量，shell 变量优先。
 

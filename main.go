@@ -23,9 +23,9 @@ import (
 	"time"
 )
 
-// The Vue build is embedded into the same binary for simple distribution.
+// The static HTML frontend is embedded into the same binary for simple distribution.
 //
-//go:embed web/dist
+//go:embed web
 var embeddedWeb embed.FS
 
 const (
@@ -1299,11 +1299,11 @@ func serveSPA(w http.ResponseWriter, r *http.Request) {
 	if requested == "" || requested == "." {
 		requested = "index.html"
 	}
-	filePath := pathpkg.Join("web/dist", requested)
+	filePath := pathpkg.Join("web", requested)
 	data, err := fs.ReadFile(embeddedWeb, filePath)
 	contentType := mime.TypeByExtension(pathpkg.Ext(requested))
 	if err != nil {
-		data, err = fs.ReadFile(embeddedWeb, "web/dist/index.html")
+		data, err = fs.ReadFile(embeddedWeb, "web/index.html")
 		contentType = "text/html; charset=utf-8"
 	}
 	if err != nil {
