@@ -476,6 +476,10 @@ score 是 0-100 的取消建议置信度。必须为输入中的每个仓库返�
 ` + languageInstruction + `
 
 仓库数据：` + string(data)
+	var thinking *chatThinking
+	if c.thinking != "" && supportsDeepSeekThinking(c.baseURL, c.model) {
+		thinking = &chatThinking{Type: c.thinking}
+	}
 	reqBody := chatRequest{
 		Model: c.model,
 		Messages: []chatMessage{
@@ -484,7 +488,7 @@ score 是 0-100 的取消建议置信度。必须为输入中的每个仓库返�
 		},
 		Temperature:    0.2,
 		MaxTokens:      c.maxTokens,
-		Thinking:       &chatThinking{Type: c.thinking},
+		Thinking:       thinking,
 		ResponseFormat: aiReviewResponseFormat(),
 	}
 	body, err := json.Marshal(reqBody)
@@ -527,6 +531,14 @@ score 是 0-100 的取消建议置信度。必须为输入中的每个仓库返�
 	}
 	reviews, err := parseAIReviews(completion.Choices[0].Message.Content)
 	return reviews, usage, err
+}
+
+func supportsDeepSeekThinking(baseURL, model string) bool {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "deepseek-") {
+		return true
+	}
+	parsed, err := url.Parse(baseURL)
+	return err == nil && strings.Contains(strings.ToLower(parsed.Hostname()), "deepseek")
 }
 
 func truncateRunes(value string, limit int) string {
@@ -952,6 +964,7 @@ type App struct {
 	telegram    *TelegramClient
 	store       *Store
 	db          *SQLiteStore
+	// ponytail: global lock; per-account locks only if multi-user throughput matters.
 	operationMu sync.Mutex
 }
 
@@ -1248,12 +1261,13 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	a.store.remove(fullName)
 	if a.db != nil {
 		if err := a.db.DeleteRepository(fullName); err != nil {
-			log.Printf("warning: could not delete repository from sqlite: %v", err)
+			writeError(w, http.StatusInternalServerError, fmt.Errorf("GitHub unstar succeeded but local cleanup failed: %w", err))
+			return
 		}
 	}
+	a.store.remove(fullName)
 	writeJSON(w, http.StatusOK, map[string]any{"removed": fullName})
 }
 

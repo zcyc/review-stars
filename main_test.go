@@ -158,6 +158,33 @@ func TestAIClientUsesConfiguredOpenAIEndpoint(t *testing.T) {
 	}
 }
 
+func TestAIClientOmitsDeepSeekThinkingForGenericModel(t *testing.T) {
+	client := &AIClient{
+		baseURL:  "https://api.example.test/v1",
+		key:      "test-key",
+		model:    "gpt-5.4",
+		thinking: "disabled",
+		http: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			var request chatRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode request: %v", err)
+			}
+			if request.Thinking != nil {
+				t.Errorf("thinking = %#v, want omitted for generic model", request.Thinking)
+			}
+			return &http.Response{
+				StatusCode: 200,
+				Status:     "200 OK",
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"choices":[{"message":{"role":"assistant","content":"{\"reviews\":[{\"full_name\":\"acme/demo\",\"decision\":\"keep\"}]}"}}]}`)),
+			}, nil
+		})},
+	}
+	if _, _, err := client.Review(context.Background(), []Repository{{FullName: "acme/demo"}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -434,6 +461,48 @@ func TestSQLiteStoreRoundTripAndFingerprint(t *testing.T) {
 	ruleReviews, err := database.ListRuleReviews(repos)
 	if err != nil || len(ruleReviews) != 1 || ruleReviews[0].Source != "rule" {
 		t.Fatalf("unexpected stored rule reviews: %#v, %v", ruleReviews, err)
+	}
+	if err := database.DeleteRepository("ACME/DEMO"); err != nil {
+		t.Fatal(err)
+	}
+	if repos, err := database.ListRepositories(); err != nil || len(repos) != 0 {
+		t.Fatalf("case-insensitive repository delete failed: %#v, %v", repos, err)
+	}
+}
+
+func TestUnstarDoesNotReportSuccessWhenLocalCleanupFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	database, err := openSQLiteStore(filepath.Join(t.TempDir(), "review-stars.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.SaveRepositories([]Repository{{FullName: "acme/demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store := &Store{}
+	store.setData([]Repository{{FullName: "acme/demo"}}, nil)
+	app := &App{
+		github: &GitHubClient{baseURL: server.URL, token: "test", http: server.Client()},
+		store:  store,
+		db:     database,
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/api/stars/acme/demo", nil)
+
+	app.unstar(recorder, request)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("cleanup failure status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	repos, _, _ := store.snapshot()
+	if len(repos) != 1 {
+		t.Fatalf("repository was removed from memory after cleanup failure: %#v", repos)
 	}
 }
 

@@ -18,7 +18,7 @@ func startReminderScheduler(app *App) *cron.Cron {
 		log.Printf("warning: REVIEW_CRON is configured but Telegram is not configured; scheduler disabled")
 		return nil
 	}
-	scheduler := cron.New()
+	scheduler := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 	if _, err := scheduler.AddFunc(app.config.ReviewCron, func() {
 		app.sendScheduledReminders()
 	}); err != nil {

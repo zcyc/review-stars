@@ -249,6 +249,6 @@ ON CONFLICT(full_name) DO UPDATE SET
 }
 
 func (s *SQLiteStore) DeleteRepository(fullName string) error {
-	_, err := s.db.Exec("DELETE FROM repositories WHERE full_name = ?", fullName)
+	_, err := s.db.Exec("DELETE FROM repositories WHERE full_name = ? COLLATE NOCASE", fullName)
 	return err
 }
