@@ -113,7 +113,7 @@ AI requests only include decision-relevant metadata: descriptions are capped at 
 
 Rules run before AI and are not an AI fallback. Enabled rule groups must all match simultaneously: by default a repository must be archived, stale for 180 days, and have fewer than 1,000 Stars. Statuses inside `RULE_STATUSES` are alternatives. If any repository remains after filtering and AI is unavailable, the unified review returns an error.
 
-The random recall panel accepts a count and returns that many repositories when available. For an archived repository, the page opens the current user's GitHub Stars search instead of calling the unstar API; remove that Star manually there. Active repositories still use the GitHub API and require the write permission.
+The random recall panel accepts a count and returns that many repositories when available. The page uses the GitHub unstar API for both active and archived repositories. If GitHub denies the required write permission, it offers a link to remove the Star manually from GitHub Stars.
 
 Changing `APP_LANGUAGE` invalidates the currently loaded review language; run the unified review again. Old review payloads are not migrated.
 

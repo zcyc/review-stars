@@ -946,13 +946,13 @@ func pushedMonth(value time.Time) string {
 }
 
 type App struct {
-	config   Config
-	github   *GitHubClient
-	ai       *AIClient
-	telegram *TelegramClient
-	store    *Store
-	db       *SQLiteStore
-	reviewMu sync.Mutex
+	config      Config
+	github      *GitHubClient
+	ai          *AIClient
+	telegram    *TelegramClient
+	store       *Store
+	db          *SQLiteStore
+	operationMu sync.Mutex
 }
 
 type TelegramClient struct {
@@ -1030,6 +1030,9 @@ func (a *App) listStars(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) syncAllStars(ctx context.Context) ([]Repository, []RepositoryReview, error) {
+	a.operationMu.Lock()
+	defer a.operationMu.Unlock()
+
 	repos, err := a.github.ListStarred(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -1051,8 +1054,8 @@ func (a *App) syncAllStars(ctx context.Context) ([]Repository, []RepositoryRevie
 }
 
 func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, ReviewStats, int, int, int, int, []string, error) {
-	a.reviewMu.Lock()
-	defer a.reviewMu.Unlock()
+	a.operationMu.Lock()
+	defer a.operationMu.Unlock()
 
 	repos, _, _ := a.store.snapshot()
 	if len(repos) == 0 {
@@ -1163,10 +1166,6 @@ func (a *App) sync(w http.ResponseWriter, r *http.Request) {
 func (a *App) review(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		repos, reviews, updatedAt := a.store.snapshot()
-		if len(reviews) == 0 {
-			writeError(w, http.StatusNotFound, errors.New("还没有评审结果，请先同步仓库并开始评审"))
-			return
-		}
 		writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews, "stats": statsForCollection(repos, reviews), "ai_complete": aiReviewComplete(repos, reviews, a.config.Language), "updated_at": updatedAt})
 		return
 	}
@@ -1231,6 +1230,9 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
+	a.operationMu.Lock()
+	defer a.operationMu.Unlock()
+
 	fullName := strings.TrimPrefix(r.URL.Path, "/api/stars/")
 	fullName, _ = url.PathUnescape(fullName)
 	if err := a.github.Unstar(r.Context(), fullName); err != nil {

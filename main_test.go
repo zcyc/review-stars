@@ -237,6 +237,29 @@ func TestUnstarArchivedRepositoryUsesGitHubAPI(t *testing.T) {
 	}
 }
 
+func TestReviewGetReturnsPendingStats(t *testing.T) {
+	store := &Store{}
+	store.setData([]Repository{{FullName: "acme/one"}, {FullName: "acme/two"}}, nil)
+	app := &App{store: store}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/review", nil)
+
+	app.review(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("review GET status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var response struct {
+		Reviews []RepositoryReview `json:"reviews"`
+		Stats   ReviewStats        `json:"stats"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Reviews) != 0 || response.Stats != (ReviewStats{Total: 2, Review: 2}) {
+		t.Fatalf("unexpected pending review response: %#v", response)
+	}
+}
+
 func TestUnstarPermissionErrorReturnsManualStarsLink(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete || r.URL.Path != "/user/starred/acme/demo" {

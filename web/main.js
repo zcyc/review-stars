@@ -15,8 +15,8 @@ const messages = {
     repoListTitle: '仓库清单',
     searchPlaceholder: '搜索仓库…', all: '全部状态', unstarFilter: '建议取消', reviewFilter: '需要回顾', keepFilter: '建议保留',
     loadingStars: '正在读取本地仓库数据…', noStarsTitle: '还没有同步仓库', noStarsText: '点击上方“同步仓库”从 GitHub 获取全部 Stars。', noMatches: '没有匹配的仓库', noReview: '还没有评审结果', noMatchesText: '试试换一个搜索词或状态筛选。', startReviewHint: '点击上方“开始 AI 评审”。',
-    noDescription: '这个仓库没有提供描述。', archived: '已归档', active: '未归档', fork: 'FORK', starredAt: '收藏于 {{date}}', openRepoTitle: '打开仓库', openStars: '打开 GitHub Stars', unstarAction: '取消 Star', findArchived: '手动取消 Star',
-    decisionUnstar: '建议取消', decisionReview: '需要回顾', decisionKeep: '建议保留', pendingDecision: '待评审', confirmUnstar: '确定取消 {{repo}} 的 Star 吗？此操作会直接修改 GitHub。', archivedOpenStars: '{{repo}} 已归档，已打开 GitHub Stars 搜索，请在那里手动取消 Star。', unstarDone: '已取消 {{repo}} 的 Star',
+    noDescription: '这个仓库没有提供描述。', archived: '已归档', active: '未归档', fork: 'FORK', starredAt: '收藏于 {{date}}', openRepoTitle: '打开仓库', openStars: '打开 GitHub Stars', unstarAction: '取消 Star',
+    decisionUnstar: '建议取消', decisionReview: '需要回顾', decisionKeep: '建议保留', pendingDecision: '待评审', confirmUnstar: '确定取消 {{repo}} 的 Star 吗？此操作会直接修改 GitHub。', unstarDone: '已取消 {{repo}} 的 Star',
     unknownDate: '未知', unknownUpdated: '更新时间未知', recentlyUpdated: '最近更新', todayActive: '今天有活动', daysAgo: '{{count}} 天前更新', monthsAgo: '{{count}} 个月前更新', yearsAgo: '{{count}} 年前更新', requestFailed: '请求失败（{{status}}）', switchToLight: '切换到亮色模式', switchToDark: '切换到暗色模式',
   },
   en: {
@@ -26,7 +26,7 @@ const messages = {
     statCollected: 'Starred repositories', statCollectedFoot: 'Synced from GitHub', statUnstar: 'Suggested to unstar', statUnstarAI: 'AI and rule recommendations', statReview: 'Needs a human look', statReviewFoot: 'Worth opening once', statKeep: 'Suggested to keep', statKeepFoot: 'Still useful in your collection',
     randomTitle: 'Random repository recall', randomEmpty: 'Pick your next repositories to revisit', randomCount: 'Count', draw: 'Pick', repoListTitle: 'Repository list',
     searchPlaceholder: 'Search repositories…', all: 'All statuses', unstarFilter: 'Suggested to unstar', reviewFilter: 'Needs review', keepFilter: 'Suggested to keep', loadingStars: 'Reading local repository data…', noStarsTitle: 'No repositories synced', noStarsText: 'Click “Sync repositories” above to load all of your GitHub Stars.', noMatches: 'No matching repositories', noReview: 'No review results yet', noMatchesText: 'Try another search term or status filter.', startReviewHint: 'Use “Start AI review” above.',
-    noDescription: 'This repository has no description.', archived: 'ARCHIVED', active: 'ACTIVE', fork: 'FORK', starredAt: 'Starred {{date}}', openRepoTitle: 'Open repository', openStars: 'Open GitHub Stars', unstarAction: 'Unstar', findArchived: 'Remove Star manually', decisionUnstar: 'Suggested to unstar', decisionReview: 'Needs review', decisionKeep: 'Suggested to keep', pendingDecision: 'Pending review', confirmUnstar: 'Unstar {{repo}}? This will modify GitHub directly.', archivedOpenStars: '{{repo}} is archived. GitHub Stars search was opened; remove the Star there manually.', unstarDone: 'Unstarred {{repo}}',
+    noDescription: 'This repository has no description.', archived: 'ARCHIVED', active: 'ACTIVE', fork: 'FORK', starredAt: 'Starred {{date}}', openRepoTitle: 'Open repository', openStars: 'Open GitHub Stars', unstarAction: 'Unstar', decisionUnstar: 'Suggested to unstar', decisionReview: 'Needs review', decisionKeep: 'Suggested to keep', pendingDecision: 'Pending review', confirmUnstar: 'Unstar {{repo}}? This will modify GitHub directly.', unstarDone: 'Unstarred {{repo}}',
     unknownDate: 'Unknown', unknownUpdated: 'Update date unknown', recentlyUpdated: 'Recently updated', todayActive: 'Active today', daysAgo: 'Updated {{count}} days ago', monthsAgo: 'Updated {{count}} months ago', yearsAgo: 'Updated {{count}} years ago', requestFailed: 'Request failed ({{status}})', switchToLight: 'Switch to light mode', switchToDark: 'Switch to dark mode',
   },
 }
@@ -46,6 +46,7 @@ const state = {
   loadingStars: false,
   syncing: false,
   reviewing: false,
+  initializing: true,
   busyRepo: '',
   error: '',
   errorLink: '',
@@ -176,8 +177,8 @@ function renderActions() {
   if (count) count.textContent = state.stars.length ? `${formatNumber(state.stars.length)} ${t('reposLoaded')}` : t('noReposLoaded')
   const model = document.querySelector('#model-note')
   if (model) model.textContent = `${health.ai_model || 'deepseek-v4-flash'} ${t('modelSuffix')}`
-  const canSync = !state.syncing && health.github_configured
-  const canReview = !state.reviewing && health.github_configured && health.ai_configured && state.stars.length > 0
+  const canSync = !state.initializing && !state.syncing && !state.reviewing && !state.busyRepo && health.github_configured
+  const canReview = !state.initializing && !state.reviewing && !state.syncing && !state.busyRepo && health.github_configured && health.ai_configured && state.stars.length > 0
   const canContinue = canReview && !state.aiComplete
   document.querySelector('#action-buttons').innerHTML = `
     <button class="button button-outline" type="button" data-action="sync" ${canSync ? '' : 'disabled'}>${state.syncing ? '<span class="spinner"></span>' : ''}${state.syncing ? t('syncing') : t('sync')}</button>
@@ -276,7 +277,7 @@ function renderRepository(repo) {
   const language = repo.language ? `<span><i class="language-dot"></i>${escapeHTML(repo.language)}</span>` : ''
   const starredAt = repo.starred_at ? `<span>${t('starredAt', { date: escapeHTML(formatDate(repo.starred_at)) })}</span>` : ''
   const reasons = (repo.reasons || []).slice(0, 2).map(reason => `<span>${escapeHTML(reason)}</span>`).join('')
-  const actionLabel = state.busyRepo === repo.full_name ? '…' : (repo.archived ? t('findArchived') : t('unstarAction'))
+  const actionLabel = state.busyRepo === repo.full_name ? '…' : t('unstarAction')
   return `<article class="repo-row">
     <div class="repo-main"><div class="repo-avatar repo-avatar-large">${escapeHTML(repo.name?.slice(0, 1).toUpperCase())}</div><div class="repo-copy">
       <div class="repo-title-line"><a href="${escapeHTML(safeURL(repo.html_url))}" target="_blank" rel="noreferrer noopener">${escapeHTML(repo.full_name)}</a>${archived}${fork}</div>
@@ -451,13 +452,6 @@ async function unstar(repo) {
   state.error = ''
   state.errorLink = ''
   state.notice = ''
-  if (repo.archived) {
-    const target = `https://github.com/stars?q=${encodeURIComponent(repo.full_name)}`
-    window.open(target, '_blank', 'noopener,noreferrer')
-    state.notice = t('archivedOpenStars', { repo: repo.full_name })
-    renderAlerts()
-    return
-  }
   if (!window.confirm(t('confirmUnstar', { repo: repo.full_name }))) return
   state.busyRepo = repo.full_name
   renderRepositoryContent()
@@ -466,12 +460,12 @@ async function unstar(repo) {
     state.stars = state.stars.filter(item => item.full_name !== repo.full_name)
     const aiRepo = state.reviews.find(item => item.full_name === repo.full_name)
     state.reviews = state.reviews.filter(item => item.full_name !== repo.full_name)
-    if (aiRepo) {
-      state.stats = {
-        ...state.stats,
-        total: Math.max(0, state.stats.total - 1),
-        unstar: Math.max(0, state.stats.unstar - (aiRepo.decision === 'unstar' ? 1 : 0)),
-      }
+    state.randomRepos = state.randomRepos.filter(item => item.full_name !== repo.full_name)
+    const decision = aiRepo?.decision === 'unstar' ? 'unstar' : aiRepo?.decision === 'keep' ? 'keep' : 'review'
+    state.stats = {
+      ...state.stats,
+      total: Math.max(0, state.stats.total - 1),
+      [decision]: Math.max(0, state.stats[decision] - 1),
     }
     state.notice = t('unstarDone', { repo: repo.full_name })
   } catch (error) {
@@ -515,4 +509,7 @@ app.addEventListener('change', event => {
 renderShell()
 initTheme()
 render()
-Promise.all([loadHealth(), loadStars(), loadExistingReview()])
+Promise.all([loadHealth(), loadStars(), loadExistingReview()]).finally(() => {
+  state.initializing = false
+  render()
+})
