@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -514,6 +516,19 @@ func TestRedactExternalURL(t *testing.T) {
 	githubURL := "https://api.github.com/user/starred"
 	if redactExternalURL(githubURL) != githubURL {
 		t.Fatalf("non-Telegram URL changed: %s", redactExternalURL(githubURL))
+	}
+}
+
+func TestLogExternalErrorRedactsTelegramToken(t *testing.T) {
+	var output bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&output)
+	t.Cleanup(func() { log.SetOutput(previous) })
+
+	target := "https://api.telegram.org/bot123456:secret/sendMessage"
+	logExternalError("telegram", http.MethodPost, target, time.Now(), &url.Error{Op: "Post", URL: target, Err: errors.New("connection refused")})
+	if strings.Contains(output.String(), "123456:secret") || !strings.Contains(output.String(), "bot-REDACTED") {
+		t.Fatalf("Telegram token was not redacted from error log: %s", output.String())
 	}
 }
 

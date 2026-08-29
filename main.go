@@ -137,7 +137,8 @@ func logExternalResponse(service, method, target string, status int, started tim
 }
 
 func logExternalError(service, method, target string, started time.Time, err error) {
-	log.Printf("[%s] response method=%s url=%s error=%v duration=%s", service, method, redactExternalURL(target), err, time.Since(started).Round(time.Millisecond))
+	message := strings.ReplaceAll(err.Error(), target, redactExternalURL(target))
+	log.Printf("[%s] response method=%s url=%s error=%s duration=%s", service, method, redactExternalURL(target), message, time.Since(started).Round(time.Millisecond))
 }
 
 func redactExternalURL(raw string) string {
@@ -1391,7 +1392,8 @@ func main() {
 		Handler:           app.handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      90 * time.Second,
+		// ponytail: review duration scales with the number of Stars; async jobs only if multi-user use needs bounded connections.
+		WriteTimeout:      0,
 		IdleTimeout:       120 * time.Second,
 	}
 	log.Printf("Review Stars listening on http://%s:%s (loaded repositories=%d reviews=%d database=%s)", config.Host, config.Port, len(repos), len(reviews), config.DatabaseFile)

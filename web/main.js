@@ -178,7 +178,7 @@ function renderActions() {
   const model = document.querySelector('#model-note')
   if (model) model.textContent = `${health.ai_model || 'deepseek-v4-flash'} ${t('modelSuffix')}`
   const canSync = !state.initializing && !state.syncing && !state.reviewing && !state.busyRepo && health.github_configured
-  const canReview = !state.initializing && !state.reviewing && !state.syncing && !state.busyRepo && health.github_configured && health.ai_configured && state.stars.length > 0
+  const canReview = !state.initializing && !state.reviewing && !state.syncing && !state.busyRepo && health.ai_configured && state.stars.length > 0
   const canContinue = canReview && !state.aiComplete
   document.querySelector('#action-buttons').innerHTML = `
     <button class="button button-outline" type="button" data-action="sync" ${canSync ? '' : 'disabled'}>${state.syncing ? '<span class="spinner"></span>' : ''}${state.syncing ? t('syncing') : t('sync')}</button>
