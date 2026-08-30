@@ -1251,16 +1251,18 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 	fullName, _ = url.PathUnescape(fullName)
 	if err := a.github.Unstar(r.Context(), fullName); err != nil {
 		var githubErr *githubAPIError
-		if errors.As(err, &githubErr) && githubErr.isStarPermissionError() {
-			starsURL := githubStarsURL(fullName)
-			writeJSON(w, http.StatusForbidden, map[string]any{
-				"error":     "GitHub token needs Starring: read and write plus Metadata: read to remove Stars",
-				"stars_url": starsURL,
-			})
+		if !(errors.As(err, &githubErr) && githubErr.status == http.StatusNotFound) {
+			if errors.As(err, &githubErr) && githubErr.isStarPermissionError() {
+				starsURL := githubStarsURL(fullName)
+				writeJSON(w, http.StatusForbidden, map[string]any{
+					"error":     "GitHub token needs Starring: read and write plus Metadata: read to remove Stars",
+					"stars_url": starsURL,
+				})
+				return
+			}
+			writeError(w, http.StatusBadGateway, err)
 			return
 		}
-		writeError(w, http.StatusBadGateway, err)
-		return
 	}
 	if a.db != nil {
 		if err := a.db.DeleteRepository(fullName); err != nil {

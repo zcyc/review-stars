@@ -266,6 +266,43 @@ func TestUnstarArchivedRepositoryUsesGitHubAPI(t *testing.T) {
 	}
 }
 
+func TestUnstarAlreadyRemovedFromGitHubCleansLocalState(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	database, err := openSQLiteStore(filepath.Join(t.TempDir(), "review-stars.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	if err := database.SaveRepositories([]Repository{{FullName: "acme/demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	store := &Store{}
+	store.setData([]Repository{{FullName: "acme/demo"}}, nil)
+	app := &App{
+		github: &GitHubClient{baseURL: server.URL, token: "test", http: server.Client()},
+		store:  store,
+		db:     database,
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/api/stars/acme/demo", nil)
+
+	app.unstar(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("already removed status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	repos, _, _ := store.snapshot()
+	if len(repos) != 0 {
+		t.Fatalf("stale repository remained in memory: %#v", repos)
+	}
+	if repos, err := database.ListRepositories(); err != nil || len(repos) != 0 {
+		t.Fatalf("stale repository remained in sqlite: %#v, %v", repos, err)
+	}
+}
+
 func TestReviewGetReturnsPendingStats(t *testing.T) {
 	store := &Store{}
 	store.setData([]Repository{{FullName: "acme/one"}, {FullName: "acme/two"}}, nil)
