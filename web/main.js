@@ -43,6 +43,7 @@ const state = {
   aiComplete: false,
   randomRepos: [],
   randomCount: 1,
+  randomizing: false,
   loadingStars: false,
   syncing: false,
   reviewing: false,
@@ -209,7 +210,9 @@ function renderRandom() {
   document.querySelector('#random-title').textContent = t('randomTitle')
   document.querySelector('#random-count-label').textContent = t('randomCount')
   document.querySelector('#random-count').value = state.randomCount
-  document.querySelector('#random-button').textContent = t('draw')
+  const randomButton = document.querySelector('#random-button')
+  randomButton.textContent = t('draw')
+  randomButton.disabled = state.randomizing
   const content = document.querySelector('#random-content')
   if (!state.randomRepos.length) {
     content.innerHTML = `<div class="random-placeholder"><span aria-hidden="true">✦</span><span>${t('randomEmpty')}</span></div>`
@@ -235,9 +238,9 @@ function renderRepositoryControls() {
 }
 
 function visibleReviews() {
-  const reviewByName = new Map(state.reviews.map(review => [review.full_name, review]))
+  const reviewByName = new Map(state.reviews.map(review => [repoKey(review.full_name), review]))
   const source = state.stars.length
-    ? state.stars.map(repo => reviewByName.get(repo.full_name) || {
+    ? state.stars.map(repo => reviewByName.get(repoKey(repo.full_name)) || {
         ...repo,
         decision: 'review',
         score: 0,
@@ -251,6 +254,10 @@ function visibleReviews() {
     const matchesFilter = state.filter === 'all' || repo.decision === state.filter
     return matchesQuery && matchesFilter
   })
+}
+
+function repoKey(fullName) {
+  return String(fullName || '').trim().toLowerCase()
 }
 
 function renderRepositoryContent() {
@@ -304,7 +311,7 @@ function decisionLabel(decision) {
 }
 
 function decisionClass(decision) {
-  return `decision-${decision || 'review'}`
+  return `decision-${['unstar', 'review', 'keep'].includes(decision) ? decision : 'review'}`
 }
 
 function formatNumber(value) {
@@ -401,8 +408,10 @@ async function loadExistingReview() {
     state.stats = data.stats || state.stats
     state.aiComplete = Boolean(data.ai_complete)
     render()
-  } catch {
-    // A first visit has no review yet; the empty state is intentional.
+  } catch (error) {
+    state.errorLink = ''
+    state.error = error.message
+    render()
   }
 }
 
@@ -433,6 +442,8 @@ async function runAIReview(continuing = false) {
 }
 
 async function pickRandom() {
+  if (state.randomizing) return
+  state.randomizing = true
   state.error = ''
   state.errorLink = ''
   const count = Math.max(1, Number(state.randomCount) || 1)
@@ -445,6 +456,7 @@ async function pickRandom() {
     state.errorLink = ''
     state.error = error.message
   }
+  state.randomizing = false
   render()
 }
 
@@ -457,10 +469,11 @@ async function unstar(repo) {
   renderRepositoryContent()
   try {
     await request(`/api/stars/${encodeURIComponent(repo.full_name)}`, { method: 'DELETE' })
-    state.stars = state.stars.filter(item => item.full_name !== repo.full_name)
-    const aiRepo = state.reviews.find(item => item.full_name === repo.full_name)
-    state.reviews = state.reviews.filter(item => item.full_name !== repo.full_name)
-    state.randomRepos = state.randomRepos.filter(item => item.full_name !== repo.full_name)
+    const key = repoKey(repo.full_name)
+    state.stars = state.stars.filter(item => repoKey(item.full_name) !== key)
+    const aiRepo = state.reviews.find(item => repoKey(item.full_name) === key)
+    state.reviews = state.reviews.filter(item => repoKey(item.full_name) !== key)
+    state.randomRepos = state.randomRepos.filter(item => repoKey(item.full_name) !== key)
     const decision = aiRepo?.decision === 'unstar' ? 'unstar' : aiRepo?.decision === 'keep' ? 'keep' : 'review'
     state.stats = {
       ...state.stats,

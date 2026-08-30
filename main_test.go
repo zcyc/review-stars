@@ -86,6 +86,40 @@ func TestRuleReview(t *testing.T) {
 	}
 }
 
+func TestRuleReviewDoesNotOverflowStaleDays(t *testing.T) {
+	now := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
+	review := ruleReview(Repository{FullName: "acme/future", PushedAt: now.Add(-365 * 24 * time.Hour)}, Config{RuleStatuses: "none", RuleStaleDays: 1 << 30}, now)
+	if review.Decision != "keep" {
+		t.Fatalf("overflowing stale-days threshold matched repository: %#v", review)
+	}
+}
+
+func TestRepositoryActivityFallsBackToUpdatedAt(t *testing.T) {
+	updatedAt := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
+	repo := Repository{FullName: "acme/empty", UpdatedAt: updatedAt}
+	if got := repositoryActivityAt(repo); got != updatedAt.Format(time.RFC3339) {
+		t.Fatalf("repositoryActivityAt() = %q, want %q", got, updatedAt.Format(time.RFC3339))
+	}
+	if pushedMonth(repo.PushedAt) != "" {
+		t.Fatal("zero pushed_at should not produce a pushed month")
+	}
+	changed := repo
+	changed.UpdatedAt = updatedAt.AddDate(0, 1, 0)
+	if repositoryFingerprint(repo) == repositoryFingerprint(changed) {
+		t.Fatal("updated_at changes were ignored when pushed_at was missing")
+	}
+}
+
+func TestReviewBatchCountDoesNotOverflow(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	if got := reviewBatchCount(2, maxInt); got != 1 {
+		t.Fatalf("reviewBatchCount() = %d, want 1", got)
+	}
+	if got := reviewBatchCount(0, maxInt); got != 0 {
+		t.Fatalf("reviewBatchCount() for empty input = %d, want 0", got)
+	}
+}
+
 func TestApplyRulePrefilter(t *testing.T) {
 	now := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
 	ruleRepo := Repository{FullName: "acme/old", Archived: true, StargazersCount: 12, PushedAt: now.Add(-365 * 24 * time.Hour)}
@@ -266,6 +300,27 @@ func TestUnstarArchivedRepositoryUsesGitHubAPI(t *testing.T) {
 	}
 }
 
+func TestUnstarAcceptsEscapedRepositoryPath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete || r.URL.Path != "/user/starred/acme/100%" {
+			t.Fatalf("unexpected GitHub request: %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	store := &Store{}
+	store.setData([]Repository{{FullName: "acme/100%"}}, nil)
+	app := &App{github: &GitHubClient{baseURL: server.URL, token: "test", http: server.Client()}, store: store}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/api/stars/acme%2F100%25", nil)
+
+	app.handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("escaped repository path status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+}
+
 func TestUnstarAlreadyRemovedFromGitHubCleansLocalState(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -429,6 +484,28 @@ func TestServeSPA(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("serveSPA() content type = %q", recorder.Header().Get("Content-Type"))
+	}
+}
+
+func TestInvalidUnstarPathReturnsBadRequest(t *testing.T) {
+	app := &App{}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/api/stars/not-a-repository", nil)
+
+	app.unstar(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("invalid unstar path status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUnknownAPIPathReturnsNotFound(t *testing.T) {
+	app := &App{store: &Store{}}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/unknown", nil)
+
+	app.handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("unknown API status = %d, want %d", recorder.Code, http.StatusNotFound)
 	}
 }
 

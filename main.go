@@ -347,12 +347,30 @@ func (c *GitHubClient) ListStarred(ctx context.Context) ([]Repository, error) {
 }
 
 func (c *GitHubClient) Unstar(ctx context.Context, fullName string) error {
-	parts := strings.Split(strings.Trim(fullName, "/"), "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return fmt.Errorf("invalid repository name %q", fullName)
+	fullName, err := normalizeRepositoryName(fullName)
+	if err != nil {
+		return err
 	}
+	parts := strings.Split(fullName, "/")
 	endpoint := "/user/starred/" + url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1])
 	return c.request(ctx, http.MethodDelete, endpoint, nil)
+}
+
+func normalizeRepositoryName(raw string) (string, error) {
+	fullName := strings.Trim(raw, "/")
+	parts := strings.Split(fullName, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", fmt.Errorf("invalid repository name %q", raw)
+	}
+	return fullName, nil
+}
+
+func normalizeRepositoryPath(raw string) (string, error) {
+	fullName, err := url.PathUnescape(raw)
+	if err != nil {
+		return "", fmt.Errorf("invalid repository path %q: %w", raw, err)
+	}
+	return normalizeRepositoryName(fullName)
 }
 
 type AIClient struct {
@@ -453,7 +471,7 @@ func (c *AIClient) Review(ctx context.Context, repos []Repository) ([]AIReview, 
 			"disabled":    repo.Disabled,
 			"fork":        repo.Fork,
 			"stars":       repo.StargazersCount,
-			"pushed_at":   repo.PushedAt.UTC().Format(time.RFC3339),
+			"pushed_at":   repositoryActivityAt(repo),
 			"starred_at":  starredAt(repo),
 		})
 	}
@@ -720,13 +738,10 @@ func ruleReview(repo Repository, config Config, now time.Time) RepositoryReview 
 			matchedReasons = append(matchedReasons, statusReasons...)
 		}
 	}
-	lastActivity := repo.PushedAt
-	if lastActivity.IsZero() {
-		lastActivity = repo.UpdatedAt
-	}
+	lastActivity := repositoryLastActivity(repo)
 	if config.RuleStaleDays > 0 {
 		enabledRules++
-		if !lastActivity.IsZero() && !lastActivity.After(now) && now.Sub(lastActivity) >= time.Duration(config.RuleStaleDays)*24*time.Hour {
+		if !lastActivity.IsZero() && !lastActivity.After(now) && now.Sub(lastActivity)/(24*time.Hour) >= time.Duration(config.RuleStaleDays) {
 			matchedRules++
 			if config.Language == "en" {
 				matchedReasons = append(matchedReasons, fmt.Sprintf("Not updated for more than %d days", config.RuleStaleDays))
@@ -944,7 +959,7 @@ func repositoryFingerprint(repo Repository) string {
 	}{
 		FullName: repo.FullName, Description: truncateRunes(repo.Description, 200), Language: repo.Language,
 		Topics: topics, Archived: repo.Archived, Disabled: repo.Disabled, Fork: repo.Fork,
-		PushedMonth: pushedMonth(repo.PushedAt),
+		PushedMonth: pushedMonth(repositoryLastActivity(repo)),
 	}
 	data, _ := json.Marshal(snapshot)
 	sum := sha256.Sum256(data)
@@ -958,6 +973,21 @@ func pushedMonth(value time.Time) string {
 	return value.UTC().Format("2006-01")
 }
 
+func repositoryLastActivity(repo Repository) time.Time {
+	if !repo.PushedAt.IsZero() {
+		return repo.PushedAt
+	}
+	return repo.UpdatedAt
+}
+
+func repositoryActivityAt(repo Repository) string {
+	lastActivity := repositoryLastActivity(repo)
+	if lastActivity.IsZero() {
+		return ""
+	}
+	return lastActivity.UTC().Format(time.RFC3339)
+}
+
 type App struct {
 	config      Config
 	github      *GitHubClient
@@ -965,8 +995,7 @@ type App struct {
 	telegram    *TelegramClient
 	store       *Store
 	db          *SQLiteStore
-	// ponytail: global lock; per-account locks only if multi-user throughput matters.
-	operationMu sync.Mutex
+	operationMu sync.Mutex // ponytail: global lock; per-account locks only if multi-user throughput matters.
 }
 
 type TelegramClient struct {
@@ -992,7 +1021,7 @@ func (c *TelegramClient) Send(ctx context.Context, repo RepositoryReview) error 
 		return errors.New("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required")
 	}
 	text := fmt.Sprintf("⭐ <b>Star 回顾提醒</b>\n\n<b>%s</b>\n%s\n\n<a href=\"%s\">打开 GitHub 仓库</a>",
-		escapeHTML(repo.FullName), escapeHTML(repo.Summary), repo.HTMLURL)
+		escapeHTML(repo.FullName), escapeHTML(repo.Summary), escapeHTML(repo.HTMLURL))
 	body, err := json.Marshal(telegramMessage{ChatID: c.chatID, Text: text, ParseMode: "HTML", DisableWebPagePreview: false})
 	if err != nil {
 		return err
@@ -1112,12 +1141,12 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 	aiReviewedCount := 0
 	usage := AIUsage{}
 	warnings := make([]string, 0)
-	totalBatches := (len(uncached) + batchSize - 1) / batchSize
+	totalBatches := reviewBatchCount(len(uncached), batchSize)
 	log.Printf("[review] start repositories=%d rule_matched=%d ai_uncached=%d ai_cached=%d batch_size=%d batches=%d", len(repos), ruleMatchedCount, len(uncached), cachedCount, batchSize, totalBatches)
-	for start := 0; start < len(uncached); start += batchSize {
-		end := start + batchSize
-		if end > len(uncached) {
-			end = len(uncached)
+	for start := 0; start < len(uncached); {
+		end := len(uncached)
+		if remaining := end - start; remaining > batchSize {
+			end = start + batchSize
 		}
 		batch := uncached[start:end]
 		batchCount++
@@ -1142,6 +1171,7 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 			aiReviewedCount++
 		}
 		log.Printf("[ai] review batch=%d/%d complete reviews=%d prompt_tokens=%d completion_tokens=%d prompt_cache_hit_tokens=%d total_tokens=%d", batchCount, totalBatches, len(merged), batchUsage.PromptTokens, batchUsage.CompletionTokens, batchUsage.PromptCacheHitTokens, batchUsage.TotalTokens)
+		start = end
 	}
 
 	reviews := make([]RepositoryReview, 0, len(repos))
@@ -1155,6 +1185,13 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 	a.store.setData(repos, reviews)
 	log.Printf("[review] complete repositories=%d rule_matched=%d ai_cached=%d ai_reviewed=%d batches=%d prompt_tokens=%d completion_tokens=%d prompt_cache_hit_tokens=%d total_tokens=%d", len(reviews), ruleMatchedCount, cachedCount, aiReviewedCount, batchCount, usage.PromptTokens, usage.CompletionTokens, usage.PromptCacheHitTokens, usage.TotalTokens)
 	return reviews, statsFor(reviews), cachedCount, aiReviewedCount, batchCount, ruleMatchedCount, warnings, nil
+}
+
+func reviewBatchCount(total, batchSize int) int {
+	if total == 0 {
+		return 0
+	}
+	return (total-1)/batchSize + 1
 }
 
 func (a *App) sync(w http.ResponseWriter, r *http.Request) {
@@ -1247,8 +1284,11 @@ func (a *App) unstar(w http.ResponseWriter, r *http.Request) {
 	a.operationMu.Lock()
 	defer a.operationMu.Unlock()
 
-	fullName := strings.TrimPrefix(r.URL.Path, "/api/stars/")
-	fullName, _ = url.PathUnescape(fullName)
+	fullName, err := normalizeRepositoryPath(strings.TrimPrefix(r.URL.EscapedPath(), "/api/stars/"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	if err := a.github.Unstar(r.Context(), fullName); err != nil {
 		var githubErr *githubAPIError
 		if !(errors.As(err, &githubErr) && githubErr.status == http.StatusNotFound) {
@@ -1314,7 +1354,12 @@ func (a *App) handler() http.Handler {
 }
 
 func serveSPA(w http.ResponseWriter, r *http.Request) {
-	requested := strings.TrimPrefix(pathpkg.Clean("/"+r.URL.Path), "/")
+	cleanPath := pathpkg.Clean("/" + r.URL.Path)
+	if cleanPath == "/api" || strings.HasPrefix(cleanPath, "/api/") {
+		http.NotFound(w, r)
+		return
+	}
+	requested := strings.TrimPrefix(cleanPath, "/")
 	if requested == "" || requested == "." {
 		requested = "index.html"
 	}
@@ -1394,8 +1439,7 @@ func main() {
 		Handler:           app.handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		// ponytail: review duration scales with the number of Stars; async jobs only if multi-user use needs bounded connections.
-		WriteTimeout:      0,
+		WriteTimeout:      0, // ponytail: review duration scales with the number of Stars; async jobs only if multi-user use needs bounded connections.
 		IdleTimeout:       120 * time.Second,
 	}
 	log.Printf("Review Stars listening on http://%s:%s (loaded repositories=%d reviews=%d database=%s)", config.Host, config.Port, len(repos), len(reviews), config.DatabaseFile)
