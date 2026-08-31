@@ -49,7 +49,6 @@ type Config struct {
 	AIModel          string
 	AIThinking       string
 	AIMaxTokens      int
-	Language         string
 	TelegramBotToken string
 	TelegramChatID   string
 	DatabaseFile     string
@@ -72,7 +71,6 @@ func loadConfig() Config {
 		AIModel:          envOr("AI_MODEL", defaultAIModel),
 		AIThinking:       envAIThinking(),
 		AIMaxTokens:      envInt("AI_MAX_TOKENS", defaultAIMaxTokens),
-		Language:         envLanguage(),
 		TelegramBotToken: strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")),
 		TelegramChatID:   strings.TrimSpace(os.Getenv("TELEGRAM_CHAT_ID")),
 		DatabaseFile:     envOr("DATABASE_FILE", "review-stars.db"),
@@ -113,15 +111,6 @@ func envAIThinking() string {
 		return "enabled"
 	}
 	return "disabled"
-}
-
-func envLanguage() string {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("APP_LANGUAGE"))) {
-	case "en", "en-us", "en_us":
-		return "en"
-	default:
-		return defaultLanguage
-	}
 }
 
 func logExternalRequest(service, method, target string) {
@@ -700,13 +689,13 @@ type RepositoryReview struct {
 	ReviewLanguage string   `json:"review_language,omitempty"`
 }
 
-func ruleReview(repo Repository, config Config, now time.Time) RepositoryReview {
+func ruleReview(repo Repository, config Config, language string, now time.Time) RepositoryReview {
 	archivedReason := "仓库已归档"
 	disabledReason := "仓库已被 GitHub 禁用"
 	noMatchSummary := "未同时命中配置规则"
 	noRulesSummary := "没有启用规则"
 	matchedSummary := "同时命中 %d 条规则"
-	if config.Language == "en" {
+	if language == "en" {
 		archivedReason = "Repository is archived"
 		disabledReason = "Repository is disabled by GitHub"
 		noMatchSummary = "Did not match all configured rules"
@@ -743,7 +732,7 @@ func ruleReview(repo Repository, config Config, now time.Time) RepositoryReview 
 		enabledRules++
 		if !lastActivity.IsZero() && !lastActivity.After(now) && now.Sub(lastActivity)/(24*time.Hour) >= time.Duration(config.RuleStaleDays) {
 			matchedRules++
-			if config.Language == "en" {
+			if language == "en" {
 				matchedReasons = append(matchedReasons, fmt.Sprintf("Not updated for more than %d days", config.RuleStaleDays))
 			} else {
 				matchedReasons = append(matchedReasons, fmt.Sprintf("超过 %d 天未更新", config.RuleStaleDays))
@@ -754,7 +743,7 @@ func ruleReview(repo Repository, config Config, now time.Time) RepositoryReview 
 		enabledRules++
 		if repo.StargazersCount < config.RuleMaxStars {
 			matchedRules++
-			if config.Language == "en" {
+			if language == "en" {
 				matchedReasons = append(matchedReasons, fmt.Sprintf("Fewer than %d Stars (current: %d)", config.RuleMaxStars, repo.StargazersCount))
 			} else {
 				matchedReasons = append(matchedReasons, fmt.Sprintf("Star 少于 %d（当前 %d）", config.RuleMaxStars, repo.StargazersCount))
@@ -780,7 +769,7 @@ func ruleReview(repo Repository, config Config, now time.Time) RepositoryReview 
 		Summary:        summary,
 		Reasons:        reasons,
 		Source:         "rule",
-		ReviewLanguage: config.Language,
+		ReviewLanguage: language,
 	}
 }
 
@@ -850,14 +839,27 @@ func filterAIReviewsByLanguage(reviews []RepositoryReview, language string) []Re
 	return filtered
 }
 
-func applyRulePrefilter(repos []Repository, aiReviews []RepositoryReview, config Config, now time.Time) []RepositoryReview {
+func requestLanguage(r *http.Request) string {
+	for _, preference := range strings.Split(r.Header.Get("Accept-Language"), ",") {
+		language := strings.ToLower(strings.TrimSpace(strings.SplitN(preference, ";", 2)[0]))
+		switch {
+		case strings.HasPrefix(language, "zh"):
+			return "zh-CN"
+		case strings.HasPrefix(language, "en"):
+			return "en"
+		}
+	}
+	return defaultLanguage
+}
+
+func applyRulePrefilter(repos []Repository, aiReviews []RepositoryReview, config Config, language string, now time.Time) []RepositoryReview {
 	aiByName := make(map[string]RepositoryReview, len(aiReviews))
 	for _, review := range aiReviews {
 		aiByName[cacheKey(review.FullName)] = review
 	}
 	result := make([]RepositoryReview, 0, len(repos))
 	for _, repo := range repos {
-		rule := ruleReview(repo, config, now)
+		rule := ruleReview(repo, config, language, now)
 		if rule.Decision == "unstar" {
 			result = append(result, rule)
 			continue
@@ -998,6 +1000,20 @@ type App struct {
 	operationMu sync.Mutex // ponytail: global lock; per-account locks only if multi-user throughput matters.
 }
 
+func (a *App) reviewSnapshot(language string) ([]Repository, []RepositoryReview, time.Time, error) {
+	repos, storedReviews, updatedAt := a.store.snapshot()
+	reviews := storedReviews
+	if a.db != nil {
+		var err error
+		reviews, err = a.db.ListReviews(repos)
+		if err != nil {
+			return nil, nil, time.Time{}, err
+		}
+	}
+	reviews = filterAIReviewsByLanguage(reviews, language)
+	return repos, applyRulePrefilter(repos, reviews, a.config, language, time.Now()), updatedAt, nil
+}
+
 type TelegramClient struct {
 	botToken string
 	chatID   string
@@ -1072,7 +1088,7 @@ func (a *App) listStars(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"repositories": repos, "count": len(repos), "updated_at": updatedAt})
 }
 
-func (a *App) syncAllStars(ctx context.Context) ([]Repository, []RepositoryReview, error) {
+func (a *App) syncAllStars(ctx context.Context, language string) ([]Repository, []RepositoryReview, error) {
 	a.operationMu.Lock()
 	defer a.operationMu.Unlock()
 
@@ -1090,13 +1106,13 @@ func (a *App) syncAllStars(ctx context.Context) ([]Repository, []RepositoryRevie
 	if err != nil {
 		return nil, nil, err
 	}
-	reviews = filterAIReviewsByLanguage(reviews, a.config.Language)
-	reviews = applyRulePrefilter(repos, reviews, a.config, time.Now())
+	reviews = filterAIReviewsByLanguage(reviews, language)
+	reviews = applyRulePrefilter(repos, reviews, a.config, language, time.Now())
 	a.store.setData(repos, reviews)
 	return repos, reviews, nil
 }
 
-func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, ReviewStats, int, int, int, int, []string, error) {
+func (a *App) reviewAll(ctx context.Context, force bool, language string) ([]RepositoryReview, ReviewStats, int, int, int, int, []string, error) {
 	a.operationMu.Lock()
 	defer a.operationMu.Unlock()
 
@@ -1113,7 +1129,7 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 	ruleMatchedCount := 0
 	now := time.Now()
 	for _, repo := range repos {
-		rule := ruleReview(repo, a.config, now)
+		rule := ruleReview(repo, a.config, language, now)
 		if rule.Decision == "unstar" {
 			byName[cacheKey(repo.FullName)] = rule
 			ruleMatchedCount++
@@ -1124,7 +1140,7 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 			if err != nil {
 				return nil, ReviewStats{}, 0, 0, 0, ruleMatchedCount, nil, err
 			}
-			if ok && cached.Source == "ai" && cached.AILanguage == a.config.Language {
+			if ok && cached.Source == "ai" && cached.AILanguage == language {
 				byName[cacheKey(repo.FullName)] = cached
 				cachedCount++
 				continue
@@ -1141,6 +1157,11 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 	aiReviewedCount := 0
 	usage := AIUsage{}
 	warnings := make([]string, 0)
+	var aiClient AIClient
+	if a.ai != nil {
+		aiClient = *a.ai
+		aiClient.language = language
+	}
 	totalBatches := reviewBatchCount(len(uncached), batchSize)
 	log.Printf("[review] start repositories=%d rule_matched=%d ai_uncached=%d ai_cached=%d batch_size=%d batches=%d", len(repos), ruleMatchedCount, len(uncached), cachedCount, batchSize, totalBatches)
 	for start := 0; start < len(uncached); {
@@ -1154,12 +1175,12 @@ func (a *App) reviewAll(ctx context.Context, force bool) ([]RepositoryReview, Re
 		if a.ai == nil {
 			return nil, ReviewStats{}, cachedCount, aiReviewedCount, batchCount, ruleMatchedCount, warnings, errors.New("AI_API_KEY is not configured")
 		}
-		aiReviews, batchUsage, err := a.ai.Review(ctx, batch)
+		aiReviews, batchUsage, err := aiClient.Review(ctx, batch)
 		usage.add(batchUsage)
 		if err != nil {
 			return nil, ReviewStats{}, cachedCount, aiReviewedCount, batchCount, ruleMatchedCount, warnings, fmt.Errorf("AI review failed in batch %d: %w", batchCount, err)
 		}
-		merged, err := mergeAIReviews(batch, aiReviews, a.config.Language)
+		merged, err := mergeAIReviews(batch, aiReviews, language)
 		if err != nil {
 			return nil, ReviewStats{}, cachedCount, aiReviewedCount, batchCount, ruleMatchedCount, warnings, fmt.Errorf("AI review result invalid in batch %d: %w", batchCount, err)
 		}
@@ -1199,7 +1220,8 @@ func (a *App) sync(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
-	repos, reviews, err := a.syncAllStars(r.Context())
+	language := requestLanguage(r)
+	repos, reviews, err := a.syncAllStars(r.Context(), language)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return
@@ -1207,7 +1229,7 @@ func (a *App) sync(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"repositories": repos,
 		"reviews":      reviews,
-		"ai_complete":  aiReviewComplete(repos, reviews, a.config.Language),
+		"ai_complete":  aiReviewComplete(repos, reviews, language),
 		"count":        len(repos),
 		"stats":        statsForCollection(repos, reviews),
 		"updated_at":   time.Now(),
@@ -1215,9 +1237,14 @@ func (a *App) sync(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) review(w http.ResponseWriter, r *http.Request) {
+	language := requestLanguage(r)
 	if r.Method == http.MethodGet {
-		repos, reviews, updatedAt := a.store.snapshot()
-		writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews, "stats": statsForCollection(repos, reviews), "ai_complete": aiReviewComplete(repos, reviews, a.config.Language), "updated_at": updatedAt})
+		repos, reviews, updatedAt, err := a.reviewSnapshot(language)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews, "stats": statsForCollection(repos, reviews), "ai_complete": aiReviewComplete(repos, reviews, language), "updated_at": updatedAt})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -1228,13 +1255,17 @@ func (a *App) review(w http.ResponseWriter, r *http.Request) {
 	continueOnly := r.URL.Query().Get("continue") == "1" || strings.EqualFold(r.URL.Query().Get("continue"), "true")
 	if continueOnly {
 		force = false
-		repos, reviews, _ := a.store.snapshot()
-		if aiReviewComplete(repos, reviews, a.config.Language) {
+		repos, reviews, _, err := a.reviewSnapshot(language)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if aiReviewComplete(repos, reviews, language) {
 			writeError(w, http.StatusConflict, errors.New("AI review is already complete"))
 			return
 		}
 	}
-	reviews, stats, cachedCount, aiReviewedCount, batchCount, ruleMatchedCount, warnings, err := a.reviewAll(r.Context(), force)
+	reviews, stats, cachedCount, aiReviewedCount, batchCount, ruleMatchedCount, warnings, err := a.reviewAll(r.Context(), force, language)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return
@@ -1247,7 +1278,7 @@ func (a *App) review(w http.ResponseWriter, r *http.Request) {
 		"ai_reviewed_count":  aiReviewedCount,
 		"batch_count":        batchCount,
 		"rule_matched_count": ruleMatchedCount,
-		"ai_complete":        aiReviewComplete(repos, reviews, a.config.Language),
+		"ai_complete":        aiReviewComplete(repos, reviews, language),
 		"updated_at":         time.Now(),
 	}
 	if len(warnings) > 0 {
@@ -1261,7 +1292,12 @@ func (a *App) randomRepository(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
-	_, reviews, _ := a.store.snapshot()
+	language := requestLanguage(r)
+	_, reviews, _, err := a.reviewSnapshot(language)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	if len(reviews) > 0 {
 		count := 1
 		if rawCount := strings.TrimSpace(r.URL.Query().Get("count")); rawCount != "" {
@@ -1326,7 +1362,7 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":                  true,
 		"github_configured":   a.config.GitHubToken != "",
-		"language":            a.config.Language,
+		"language":            requestLanguage(r),
 		"ai_configured":       a.config.AIAPIKey != "",
 		"telegram_configured": a.config.TelegramBotToken != "" && a.config.TelegramChatID != "",
 		"ai_model":            a.config.AIModel,
@@ -1409,7 +1445,7 @@ func main() {
 	config := loadConfig()
 	httpClient := &http.Client{Timeout: 45 * time.Second}
 	github := &GitHubClient{baseURL: config.GitHubAPIURL, token: config.GitHubToken, http: httpClient}
-	ai := &AIClient{baseURL: config.AIBaseURL, key: config.AIAPIKey, model: config.AIModel, thinking: config.AIThinking, maxTokens: config.AIMaxTokens, language: config.Language, http: httpClient}
+	ai := &AIClient{baseURL: config.AIBaseURL, key: config.AIAPIKey, model: config.AIModel, thinking: config.AIThinking, maxTokens: config.AIMaxTokens, language: defaultLanguage, http: httpClient}
 	telegram := &TelegramClient{botToken: config.TelegramBotToken, chatID: config.TelegramChatID, http: httpClient}
 	database, err := openSQLiteStore(config.DatabaseFile)
 	if err != nil {
@@ -1424,8 +1460,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("load reviews from sqlite: %v", err)
 	}
-	reviews = filterAIReviewsByLanguage(reviews, config.Language)
-	reviews = applyRulePrefilter(repos, reviews, config, time.Now())
+	reviews = filterAIReviewsByLanguage(reviews, defaultLanguage)
+	reviews = applyRulePrefilter(repos, reviews, config, defaultLanguage, time.Now())
 	store := &Store{}
 	store.setData(repos, reviews)
 	app := &App{config: config, github: github, ai: ai, telegram: telegram, store: store, db: database}

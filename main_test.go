@@ -73,14 +73,14 @@ func TestParseAIReviewsIncludesResponsePreviewOnFailure(t *testing.T) {
 
 func TestRuleReview(t *testing.T) {
 	repo := Repository{FullName: "acme/old", Archived: true, StargazersCount: 12, PushedAt: time.Now().Add(-2 * 365 * 24 * time.Hour)}
-	review := ruleReview(repo, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, time.Now())
+	review := ruleReview(repo, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, "zh-CN", time.Now())
 	if review.Decision != "unstar" || review.Score != 100 {
 		t.Fatalf("expected rule-matched repo to be unstar, got %#v", review)
 	}
 	if len(review.Reasons) == 0 {
 		t.Fatal("expected at least one reason")
 	}
-	partial := ruleReview(Repository{FullName: "acme/partial", Archived: true, StargazersCount: 5000, PushedAt: time.Now()}, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, time.Now())
+	partial := ruleReview(Repository{FullName: "acme/partial", Archived: true, StargazersCount: 5000, PushedAt: time.Now()}, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, "zh-CN", time.Now())
 	if partial.Decision != "keep" || len(partial.Reasons) != 0 {
 		t.Fatalf("partially matched rules should not trigger: %#v", partial)
 	}
@@ -88,7 +88,7 @@ func TestRuleReview(t *testing.T) {
 
 func TestRuleReviewDoesNotOverflowStaleDays(t *testing.T) {
 	now := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
-	review := ruleReview(Repository{FullName: "acme/future", PushedAt: now.Add(-365 * 24 * time.Hour)}, Config{RuleStatuses: "none", RuleStaleDays: 1 << 30}, now)
+	review := ruleReview(Repository{FullName: "acme/future", PushedAt: now.Add(-365 * 24 * time.Hour)}, Config{RuleStatuses: "none", RuleStaleDays: 1 << 30}, "zh-CN", now)
 	if review.Decision != "keep" {
 		t.Fatalf("overflowing stale-days threshold matched repository: %#v", review)
 	}
@@ -125,7 +125,7 @@ func TestApplyRulePrefilter(t *testing.T) {
 	ruleRepo := Repository{FullName: "acme/old", Archived: true, StargazersCount: 12, PushedAt: now.Add(-365 * 24 * time.Hour)}
 	aiRepo := Repository{FullName: "acme/active", PushedAt: now.Add(-24 * time.Hour)}
 	aiReview := RepositoryReview{Repository: aiRepo, Source: "ai", AILanguage: "zh-CN", Decision: "keep"}
-	result := applyRulePrefilter([]Repository{ruleRepo, aiRepo}, []RepositoryReview{aiReview}, Config{Language: "zh-CN", RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, now)
+	result := applyRulePrefilter([]Repository{ruleRepo, aiRepo}, []RepositoryReview{aiReview}, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, "zh-CN", now)
 	if len(result) != 2 || result[0].Source != "rule" || result[0].Decision != "unstar" || result[1].Source != "ai" {
 		t.Fatalf("unexpected prefiltered reviews: %#v", result)
 	}
@@ -242,18 +242,21 @@ func TestEnvAIThinkingDefaultsToDisabled(t *testing.T) {
 	}
 }
 
-func TestEnvLanguageDefaultsToChinese(t *testing.T) {
-	t.Setenv("APP_LANGUAGE", "")
-	if got := envLanguage(); got != "zh-CN" {
-		t.Fatalf("default language = %q, want zh-CN", got)
+func TestRequestLanguage(t *testing.T) {
+	tests := []struct {
+		acceptLanguage string
+		want           string
+	}{
+		{acceptLanguage: "zh-TW,zh;q=0.9,en;q=0.8", want: "zh-CN"},
+		{acceptLanguage: "fr-FR,en-US;q=0.8", want: "en"},
+		{acceptLanguage: "fr-FR", want: "zh-CN"},
 	}
-	t.Setenv("APP_LANGUAGE", "en-US")
-	if got := envLanguage(); got != "en" {
-		t.Fatalf("English language = %q, want en", got)
-	}
-	t.Setenv("APP_LANGUAGE", "fr")
-	if got := envLanguage(); got != "zh-CN" {
-		t.Fatalf("unsupported language = %q, want zh-CN", got)
+	for _, test := range tests {
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		request.Header.Set("Accept-Language", test.acceptLanguage)
+		if got := requestLanguage(request); got != test.want {
+			t.Errorf("requestLanguage(%q) = %q, want %q", test.acceptLanguage, got, test.want)
+		}
 	}
 }
 
@@ -549,7 +552,7 @@ func TestSQLiteStoreRoundTripAndFingerprint(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := database.SaveRuleReview(ruleReview(repo, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, time.Now())); err != nil {
+	if err := database.SaveRuleReview(ruleReview(repo, Config{RuleStatuses: "archived", RuleStaleDays: 180, RuleMaxStars: 1000}, "zh-CN", time.Now())); err != nil {
 		t.Fatal(err)
 	}
 	review, ok, err := database.GetReview(repo)

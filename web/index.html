@@ -3,18 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f8fa" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f8fa" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
     <meta name="color-scheme" content="light dark" />
-    <script>
-      (() => {
-        const theme = localStorage.getItem('review-stars-theme')
-        if (theme === 'light' || theme === 'dark') {
-          document.documentElement.classList.add('theme-' + theme)
-          document.querySelector('meta[name="color-scheme"]').content = theme
-          document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#0d1117' : '#f6f8fa'
-        }
-      })()
-    </script>
     <style>
     :root {
       color-scheme: light dark;
@@ -76,20 +67,6 @@
       }
     }
 
-    :root.theme-light {
-      color-scheme: light;
-      color: #1f2328;
-      background: #f6f8fa;
-      --bg: #f6f8fa; --ink: #1f2328; --muted: #57606a; --line: #d0d7de; --panel: #fff; --panel-soft: #f6f8fa; --panel-alt: #eef1f4; --accent: #0969da; --accent-hover: #0550ae; --accent-contrast: #fff; --orange: #bc4c00; --yellow: #9a6700; --green: #1f883d; --danger: #cf222e; --avatar: #d0d7de; --button-dark: #25292e; --button-dark-hover: #323942; --tag: #eef1f4; --tag-text: #57606a; --summary: #424a53; --footer: #656d76; --placeholder: #8c959f;
-    }
-
-    :root.theme-dark {
-      color-scheme: dark;
-      color: #e6edf3;
-      background: #0d1117;
-      --bg: #0d1117; --ink: #e6edf3; --muted: #8b949e; --line: #30363d; --panel: #161b22; --panel-soft: #21262d; --panel-alt: #151a21; --accent: #58a6ff; --accent-hover: #79c0ff; --accent-contrast: #0d1117; --orange: #db6d28; --yellow: #d29922; --green: #3fb950; --danger: #f85149; --avatar: #30363d; --button-dark: #21262d; --button-dark-hover: #30363d; --tag: #21262d; --tag-text: #8b949e; --summary: #b1bac4; --footer: #656d76; --placeholder: #747d87;
-    }
-
     * { box-sizing: border-box; }
     html { background: var(--bg); accent-color: var(--accent); }
     body { min-width: 320px; margin: 0; background: var(--bg); color: var(--ink); }
@@ -109,8 +86,6 @@
     .brand-label { line-height: 1; }
     .brand-ai { display: grid; place-items: center; min-width: 0; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--panel-alt); color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1; }
     .topbar-end { display: flex; align-items: center; gap: 16px; }
-    .theme-toggle { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 15px; line-height: 1; }
-    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
     .topbar-meta { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
     .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 14%, transparent); }
     .live-dot.offline { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 14%, transparent); }
@@ -166,7 +141,7 @@
         loadingStars: '正在读取本地仓库数据…', noStarsTitle: '还没有同步仓库', noStarsText: '点击上方“同步仓库”从 GitHub 获取全部 Stars。', noMatches: '没有匹配的仓库', noReview: '还没有评审结果', noMatchesText: '试试换一个搜索词或状态筛选。', startReviewHint: '点击上方“开始 AI 评审”。',
         noDescription: '这个仓库没有提供描述。', archived: '已归档', active: '未归档', fork: 'FORK', starredAt: '收藏于 {{date}}', openRepoTitle: '打开仓库', openStars: '打开 GitHub Stars', unstarAction: '取消 Star',
         decisionUnstar: '建议取消', decisionReview: '需要回顾', decisionKeep: '建议保留', pendingDecision: '待评审', confirmUnstar: '确定取消 {{repo}} 的 Star 吗？此操作会直接修改 GitHub。', unstarDone: '已取消 {{repo}} 的 Star',
-        unknownDate: '未知', unknownUpdated: '更新时间未知', recentlyUpdated: '最近更新', todayActive: '今天有活动', daysAgo: '{{count}} 天前更新', monthsAgo: '{{count}} 个月前更新', yearsAgo: '{{count}} 年前更新', requestFailed: '请求失败（{{status}}）', switchToLight: '切换到亮色模式', switchToDark: '切换到暗色模式',
+        unknownDate: '未知', unknownUpdated: '更新时间未知', recentlyUpdated: '最近更新', todayActive: '今天有活动', daysAgo: '{{count}} 天前更新', monthsAgo: '{{count}} 个月前更新', yearsAgo: '{{count}} 年前更新', requestFailed: '请求失败（{{status}}）',
       },
       en: {
         connected: 'GitHub connected', waitingGithub: 'Waiting for GitHub configuration', reposLoaded: 'repositories loaded', noReposLoaded: 'No repositories loaded',
@@ -176,15 +151,21 @@
         randomTitle: 'Random repository recall', randomEmpty: 'Pick your next repositories to revisit', randomCount: 'Count', draw: 'Pick', repoListTitle: 'Repository list',
         searchPlaceholder: 'Search repositories…', all: 'All statuses', unstarFilter: 'Suggested to unstar', reviewFilter: 'Needs review', keepFilter: 'Suggested to keep', loadingStars: 'Reading local repository data…', noStarsTitle: 'No repositories synced', noStarsText: 'Click “Sync repositories” above to load all of your GitHub Stars.', noMatches: 'No matching repositories', noReview: 'No review results yet', noMatchesText: 'Try another search term or status filter.', startReviewHint: 'Use “Start AI review” above.',
         noDescription: 'This repository has no description.', archived: 'ARCHIVED', active: 'ACTIVE', fork: 'FORK', starredAt: 'Starred {{date}}', openRepoTitle: 'Open repository', openStars: 'Open GitHub Stars', unstarAction: 'Unstar', decisionUnstar: 'Suggested to unstar', decisionReview: 'Needs review', decisionKeep: 'Suggested to keep', pendingDecision: 'Pending review', confirmUnstar: 'Unstar {{repo}}? This will modify GitHub directly.', unstarDone: 'Unstarred {{repo}}',
-        unknownDate: 'Unknown', unknownUpdated: 'Update date unknown', recentlyUpdated: 'Recently updated', todayActive: 'Active today', daysAgo: 'Updated {{count}} days ago', monthsAgo: 'Updated {{count}} months ago', yearsAgo: 'Updated {{count}} years ago', requestFailed: 'Request failed ({{status}})', switchToLight: 'Switch to light mode', switchToDark: 'Switch to dark mode',
+        unknownDate: 'Unknown', unknownUpdated: 'Update date unknown', recentlyUpdated: 'Recently updated', todayActive: 'Active today', daysAgo: 'Updated {{count}} days ago', monthsAgo: 'Updated {{count}} months ago', yearsAgo: 'Updated {{count}} years ago', requestFailed: 'Request failed ({{status}})',
       },
     }
 
+    function detectLanguage() {
+      const locales = navigator.languages?.length ? navigator.languages : [navigator.language]
+      for (const locale of locales) {
+        if (String(locale).toLowerCase().startsWith('zh')) return 'zh-CN'
+        if (String(locale).toLowerCase().startsWith('en')) return 'en'
+      }
+      return 'zh-CN'
+    }
+
     const state = {
-      language: 'zh-CN',
-      themeMode: 'system',
-      systemDark: false,
-      colorSchemeMedia: null,
+      language: detectLanguage(),
       stars: [],
       reviews: [],
       stats: { total: 0, unstar: 0, review: 0, keep: 0 },
@@ -232,41 +213,6 @@
       }
     }
 
-    function isDarkTheme() {
-      return state.themeMode === 'dark' || (state.themeMode === 'system' && state.systemDark)
-    }
-
-    function applyTheme() {
-      const root = document.documentElement
-      root.classList.toggle('theme-light', state.themeMode === 'light')
-      root.classList.toggle('theme-dark', state.themeMode === 'dark')
-      root.style.colorScheme = state.themeMode === 'system' ? 'light dark' : state.themeMode
-      const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]')
-      if (colorSchemeMeta) colorSchemeMeta.content = state.themeMode === 'system' ? 'light dark' : state.themeMode
-      const themeColorMeta = document.querySelector('meta[name="theme-color"]')
-      if (themeColorMeta) themeColorMeta.content = isDarkTheme() ? '#0d1117' : '#f6f8fa'
-    }
-
-    function initTheme() {
-      const saved = window.localStorage.getItem('review-stars-theme')
-      state.themeMode = saved === 'light' || saved === 'dark' ? saved : 'system'
-      state.colorSchemeMedia = window.matchMedia('(prefers-color-scheme: dark)')
-      state.systemDark = state.colorSchemeMedia.matches
-      state.colorSchemeMedia.addEventListener('change', event => {
-        state.systemDark = event.matches
-        if (state.themeMode === 'system') applyTheme()
-        renderHeader()
-      })
-      applyTheme()
-    }
-
-    function toggleTheme() {
-      state.themeMode = isDarkTheme() ? 'light' : 'dark'
-      window.localStorage.setItem('review-stars-theme', state.themeMode)
-      applyTheme()
-      renderHeader()
-    }
-
     function renderShell() {
       app.innerHTML = `
         <div class="app-shell">
@@ -276,7 +222,6 @@
               <span class="brand-label">Review</span><span class="brand-ai">Stars</span>
             </a>
             <div class="topbar-end">
-              <button class="theme-toggle" type="button" data-action="toggle-theme"></button>
               <div class="topbar-meta"><span id="live-dot" class="live-dot"></span><span id="github-status"></span></div>
             </div>
           </header>
@@ -308,13 +253,6 @@
     }
 
     function renderHeader() {
-      const themeButton = document.querySelector('[data-action="toggle-theme"]')
-      if (themeButton) {
-        const label = t(isDarkTheme() ? 'switchToLight' : 'switchToDark')
-        themeButton.textContent = isDarkTheme() ? '☀' : '☾'
-        themeButton.setAttribute('aria-label', label)
-        themeButton.title = label
-      }
       const dot = document.querySelector('#live-dot')
       if (dot) dot.classList.toggle('offline', Boolean(state.health && !state.health.github_configured))
       const status = document.querySelector('#github-status')
@@ -487,7 +425,7 @@
     }
 
     async function request(path, options = {}) {
-      const response = await fetch(path, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options })
+      const response = await fetch(path, { headers: { 'Content-Type': 'application/json', 'Accept-Language': state.language, ...(options.headers || {}) }, ...options })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
         const requestError = new Error(body.error || t('requestFailed', { status: response.status }))
@@ -502,7 +440,7 @@
       try {
         const data = await request('/api/health')
         state.health = data
-        state.language = data.language || 'zh-CN'
+        state.language = data.language || state.language
         document.documentElement.lang = state.language === 'en' ? 'en' : 'zh-CN'
         render()
       } catch (error) {
@@ -642,7 +580,6 @@
     app.addEventListener('click', event => {
       const action = event.target.closest('[data-action]')?.dataset.action
       if (!action) return
-      if (action === 'toggle-theme') toggleTheme()
       if (action === 'sync') syncStars()
       if (action === 'review') runAIReview()
       if (action === 'continue-review') runAIReview(true)
@@ -669,7 +606,7 @@
     })
 
     renderShell()
-    initTheme()
+    document.documentElement.lang = state.language === 'en' ? 'en' : 'zh-CN'
     render()
     Promise.all([loadHealth(), loadStars(), loadExistingReview()]).finally(() => {
       state.initializing = false

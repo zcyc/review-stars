@@ -54,7 +54,6 @@ make build
 - `AI_MODEL`: model name supported by that provider, for example `deepseek-v4-flash`.
 - `AI_THINKING`: DeepSeek thinking mode, `disabled` by default; set to `enabled` for harder reviews.
 - `AI_MAX_TOKENS`: maximum generated tokens per AI batch response, default `16000`.
-- `APP_LANGUAGE`: page and review language, `zh-CN` by default or `en`.
 - `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`: enable scheduled Telegram reminders when both are set.
 - `DATABASE_FILE`: SQLite path, default `review-stars.db`.
 - `REVIEW_BATCH_SIZE`: repositories per AI request, default 50. All Stars are loaded and reviewed in batches.
@@ -70,6 +69,8 @@ make build
 
 The old `OPENROUTER_*` and `APP_URL` settings are no longer read. Replace them with `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL`.
 
+`APP_LANGUAGE` is no longer read; the page and AI reviews use the browser's preferred language.
+
 ## Telegram setup
 
 1. Contact `@BotFather` in Telegram, run `/newbot`, and copy the `TELEGRAM_BOT_TOKEN`.
@@ -79,7 +80,7 @@ The old `OPENROUTER_*` and `APP_URL` settings are no longer read. Replace them w
 
 Telegram is used only by the backend cron job. There is no manual Telegram button in the web page.
 
-The page follows the operating system light/dark preference by default. Use the sun/moon button to choose a mode; the choice is stored in the browser.
+The page follows the operating system light/dark preference and the browser's preferred language (Chinese or English).
 
 ## API
 
@@ -115,7 +116,7 @@ Rules run before AI and are not an AI fallback. Enabled rule groups must all mat
 
 The random recall panel accepts a count and returns that many repositories when available. The page uses the GitHub unstar API for both active and archived repositories. If GitHub denies the required write permission, it offers a link to remove the Star manually from GitHub Stars.
 
-Changing `APP_LANGUAGE` invalidates the currently loaded review language; run the unified review again. Old review payloads are not migrated.
+Changing the browser language invalidates the currently loaded review language; run the unified review again. Old review payloads are not migrated.
 
 The old `.review-cache.json` file is no longer read. Use the SQLite database created by the current application.
 

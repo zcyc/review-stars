@@ -54,7 +54,6 @@ make build
 - `AI_MODEL`：服务商支持的模型名，例如 `deepseek-v4-flash`。
 - `AI_THINKING`：DeepSeek 思考模式，默认 `disabled`；复杂评审时可设置为 `enabled`。
 - `AI_MAX_TOKENS`：每个 AI 批次响应允许生成的最大 token 数，默认 `16000`。
-- `APP_LANGUAGE`：页面和评审使用的语言，默认 `zh-CN`，也可以设置为 `en`。
 - `TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`：两者都配置后启用 cron Telegram 后台提醒。
 - `DATABASE_FILE`：SQLite 数据库路径，默认 `review-stars.db`。
 - `REVIEW_BATCH_SIZE`：每次 AI 请求的仓库数，默认 50。程序会加载全部 Stars，再按批次请求 AI。
@@ -70,6 +69,8 @@ make build
 
 旧的 `OPENROUTER_*` 和 `APP_URL` 配置不再读取，请改用 `AI_API_KEY`、`AI_BASE_URL` 和 `AI_MODEL`。
 
+`APP_LANGUAGE` 不再读取；页面和 AI 评审使用浏览器首选语言。
+
 ## Telegram 设置
 
 1. 在 Telegram 联系 `@BotFather`，使用 `/newbot` 创建机器人，得到 `TELEGRAM_BOT_TOKEN`。
@@ -79,7 +80,7 @@ make build
 
 Telegram 只由后端 cron 任务使用，页面上没有手动 Telegram 按钮。
 
-页面默认跟随操作系统亮/暗色偏好，也可以点击顶部太阳/月亮按钮手动切换；选择会保存在浏览器中。
+页面跟随操作系统亮/暗色偏好，并根据浏览器首选语言在中文和英文之间切换。
 
 ## API
 
@@ -115,7 +116,7 @@ GitHub、AI 和 Telegram 请求都会输出请求、状态码、耗时、响应�
 
 随机回顾区域可以填写数量，在可用范围内一次抽取多个仓库。归档和未归档仓库都会使用 GitHub 取消 Star 接口；如果 GitHub 拒绝所需的写权限，页面会提供 GitHub Stars 链接供手动取消。
 
-修改 `APP_LANGUAGE` 后，当前已加载的其他语言评审结果会被视为无效，请重新运行统一评审。旧 review 数据不会迁移。
+修改浏览器语言后，当前已加载的其他语言评审结果会被视为无效，请重新运行统一评审。旧 review 数据不会迁移。
 
 旧的 `.review-cache.json` 文件不再读取，请使用当前应用创建的 SQLite 数据库。
 
