@@ -15,11 +15,667 @@
         }
       })()
     </script>
-    <link rel="stylesheet" href="/style.css" />
+    <style>
+    :root {
+      color-scheme: light dark;
+      color: #1f2328;
+      background: #f6f8fa;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --bg: #f6f8fa;
+      --ink: #1f2328;
+      --muted: #57606a;
+      --line: #d0d7de;
+      --panel: #fff;
+      --panel-soft: #f6f8fa;
+      --panel-alt: #eef1f4;
+      --accent: #0969da;
+      --accent-hover: #0550ae;
+      --accent-contrast: #fff;
+      --orange: #bc4c00;
+      --yellow: #9a6700;
+      --green: #1f883d;
+      --danger: #cf222e;
+      --avatar: #d0d7de;
+      --button-dark: #25292e;
+      --button-dark-hover: #323942;
+      --tag: #eef1f4;
+      --tag-text: #57606a;
+      --summary: #424a53;
+      --footer: #656d76;
+      --placeholder: #8c959f;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color: #e6edf3;
+        background: #0d1117;
+        --bg: #0d1117;
+        --ink: #e6edf3;
+        --muted: #8b949e;
+        --line: #30363d;
+        --panel: #161b22;
+        --panel-soft: #21262d;
+        --panel-alt: #151a21;
+        --accent: #58a6ff;
+        --accent-hover: #79c0ff;
+        --accent-contrast: #0d1117;
+        --orange: #db6d28;
+        --yellow: #d29922;
+        --green: #3fb950;
+        --danger: #f85149;
+        --avatar: #30363d;
+        --button-dark: #21262d;
+        --button-dark-hover: #30363d;
+        --tag: #21262d;
+        --tag-text: #8b949e;
+        --summary: #b1bac4;
+        --footer: #656d76;
+        --placeholder: #747d87;
+      }
+    }
+
+    :root.theme-light {
+      color-scheme: light;
+      color: #1f2328;
+      background: #f6f8fa;
+      --bg: #f6f8fa; --ink: #1f2328; --muted: #57606a; --line: #d0d7de; --panel: #fff; --panel-soft: #f6f8fa; --panel-alt: #eef1f4; --accent: #0969da; --accent-hover: #0550ae; --accent-contrast: #fff; --orange: #bc4c00; --yellow: #9a6700; --green: #1f883d; --danger: #cf222e; --avatar: #d0d7de; --button-dark: #25292e; --button-dark-hover: #323942; --tag: #eef1f4; --tag-text: #57606a; --summary: #424a53; --footer: #656d76; --placeholder: #8c959f;
+    }
+
+    :root.theme-dark {
+      color-scheme: dark;
+      color: #e6edf3;
+      background: #0d1117;
+      --bg: #0d1117; --ink: #e6edf3; --muted: #8b949e; --line: #30363d; --panel: #161b22; --panel-soft: #21262d; --panel-alt: #151a21; --accent: #58a6ff; --accent-hover: #79c0ff; --accent-contrast: #0d1117; --orange: #db6d28; --yellow: #d29922; --green: #3fb950; --danger: #f85149; --avatar: #30363d; --button-dark: #21262d; --button-dark-hover: #30363d; --tag: #21262d; --tag-text: #8b949e; --summary: #b1bac4; --footer: #656d76; --placeholder: #747d87;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); accent-color: var(--accent); }
+    body { min-width: 320px; margin: 0; background: var(--bg); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    a { color: inherit; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .app-shell { min-height: 100dvh; overflow: hidden; background: radial-gradient(circle at 88% 3%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 26rem), var(--bg); }
+    .topbar { height: 72px; padding: 0 clamp(22px, 5vw, 76px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .brand { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 9px 0 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 10%, transparent); text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: 0; }
+    .brand:hover { border-color: var(--accent); }
+    .brand-star { display: grid; place-items: center; width: 20px; height: 20px; color: #EFCE61; }
+    .brand-star svg { display: block; width: 20px; height: 20px; fill: currentColor; }
+    .brand-label { line-height: 1; }
+    .brand-ai { display: grid; place-items: center; min-width: 0; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--panel-alt); color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1; }
+    .topbar-end { display: flex; align-items: center; gap: 16px; }
+    .theme-toggle { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 15px; line-height: 1; }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar-meta { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 14%, transparent); }
+    .live-dot.offline { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 14%, transparent); }
+    .page-wrap { width: min(1240px, calc(100% - 44px)); margin: 0 auto; }
+    .action-bar { min-height: 86px; padding: 24px 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); }
+    .action-bar-meta { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .action-bar-meta strong { color: var(--ink); font-size: 14px; font-weight: 600; }
+    h2, h3, p { margin-top: 0; }
+    h2 { font-size: 25px; font-weight: 500; letter-spacing: -.04em; }
+    .action-bar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 9px; }
+    .model-note { color: var(--placeholder); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .button { min-height: 37px; padding: 0 14px; border: 1px solid transparent; font-size: 11px; font-weight: 700; letter-spacing: .01em; transition: border-color .15s, background .15s, color .15s; }
+    .button-primary { background: var(--accent); color: var(--accent-contrast); }.button-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .button-outline { border-color: var(--line); background: var(--panel); color: var(--ink); }.button-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .button-dark { background: var(--button-dark); color: #fff; }.button-dark:hover:not(:disabled) { background: var(--button-dark-hover); }
+    .spinner { display: inline-block; width: 11px; height: 11px; margin-right: 7px; border: 1px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -2px; animation: spin .7s linear infinite; }
+    .spinner-dark { width: 18px; height: 18px; color: var(--accent); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .alert { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; padding: 11px 13px; border: 1px solid var(--line); font-size: 12px; }.alert > span { font-weight: 800; }.alert-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }.alert-error a { margin-left: 8px; color: inherit; font-weight: 700; }.alert-warning { color: var(--yellow); }.alert-success { color: var(--accent); }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }.stat-card { min-height: 138px; padding: 19px 20px; background: var(--panel); border: 1px solid var(--line); }.stat-label { color: var(--muted); font-size: 11px; }.stat-value { margin: 17px 0 10px; color: var(--ink); font-size: 38px; line-height: 1; letter-spacing: -.07em; }.stat-foot { color: var(--footer); font-size: 10px; }.stat-danger .stat-value { color: var(--danger); }.stat-warm .stat-value { color: var(--yellow); }.stat-green .stat-value { color: var(--green); }
+    .focus-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 16px; }.random-card { padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); }.random-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }.random-card h2 { margin-bottom: 0; font-size: 20px; }.random-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px; margin-top: 18px; }.random-result { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 72px; padding: 12px; border: 1px solid var(--line); }.random-info { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 5px; }.random-info a { overflow: hidden; color: var(--ink); font-size: 13px; font-weight: 700; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }.random-info a:hover, .repo-title-line a:hover { color: var(--accent); }.random-info span { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }.random-placeholder { display: flex; align-items: center; gap: 12px; min-height: 58px; margin-top: 18px; padding: 13px; color: var(--placeholder); border: 1px dashed var(--line); font-size: 12px; }.random-placeholder span:first-child { color: var(--accent); font-size: 20px; }.random-actions { display: flex; align-items: center; gap: 9px; }.random-count { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }.random-count input { width: 58px; min-height: 37px; padding: 0 8px; border: 1px solid var(--line); outline: 0; background: var(--panel-soft); color: var(--ink); font-size: 12px; }.random-count input:focus { border-color: var(--accent); }
+    .repo-avatar { display: grid; flex: 0 0 auto; place-items: center; width: 43px; height: 43px; background: var(--avatar); color: var(--muted); font-size: 16px; font-weight: 700; }.repo-avatar-large { width: 43px; height: 43px; }.decision-pill { display: inline-flex; align-items: center; padding: 6px 8px; white-space: nowrap; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; }.decision-unstar { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }.decision-review { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }.decision-keep { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+    .review-section { margin-top: 69px; }.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }.section-heading h2 { margin-bottom: 0; }.list-tools { display: flex; gap: 9px; }.search-box { display: flex; align-items: center; gap: 8px; width: 190px; padding: 0 11px; border: 1px solid var(--line); color: var(--placeholder); }.search-box input { width: 100%; padding: 10px 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 11px; }.list-tools select { padding: 0 10px; border: 1px solid var(--line); outline: 0; background: var(--panel); color: var(--muted); font-size: 11px; }
+    .repo-list { border-top: 1px solid var(--line); }.repo-row { display: grid; grid-template-columns: minmax(320px, 1.35fr) minmax(250px, 1fr) auto; gap: 28px; align-items: center; padding: 22px 0; border-bottom: 1px solid var(--line); }.repo-main { display: flex; gap: 14px; min-width: 0; }.repo-copy { min-width: 0; }.repo-title-line { display: flex; align-items: center; gap: 8px; min-width: 0; }.repo-title-line a { overflow: hidden; color: var(--ink); font-size: 14px; font-weight: 700; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }.tiny-tag { padding: 3px 5px; color: var(--tag-text); border: 1px solid var(--line); font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }.repo-copy > p { overflow: hidden; margin: 7px 0 9px; color: var(--muted); font-size: 11px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }.repo-meta { display: flex; flex-wrap: wrap; gap: 13px; color: var(--footer); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }.language-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--accent); }.repo-review { min-width: 0; }.review-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.score { color: var(--placeholder); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }.review-summary { overflow: hidden; margin: 10px 0 8px; color: var(--summary); font-size: 11px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }.reason-list { display: flex; gap: 6px; overflow: hidden; }.reason-list span { overflow: hidden; padding: 4px 6px; background: var(--tag); color: var(--tag-text); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }.repo-actions { display: flex; align-items: center; gap: 9px; }.icon-button { display: grid; place-items: center; width: 31px; height: 31px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; }.icon-button:hover { border-color: var(--accent); color: var(--accent); }.remove-button { padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); background: transparent; color: var(--danger); font-size: 10px; white-space: nowrap; }.remove-button:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+    .archive-state { color: var(--green); }.archive-state.archived { color: var(--danger); }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px; border: 1px dashed var(--line); color: var(--muted); text-align: center; }.empty-icon { margin-bottom: 12px; color: var(--accent); font-size: 34px; }.empty-state h3 { margin-bottom: 7px; color: var(--ink); font-size: 16px; font-weight: 500; }.empty-state p { margin: 0; font-size: 12px; }.footer { display: flex; justify-content: space-between; width: min(1240px, calc(100% - 44px)); margin: 90px auto 0; padding: 24px 0 31px; border-top: 1px solid var(--line); color: var(--footer); font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .09em; }
+    @media (max-width: 900px) { .action-bar { align-items: flex-start; flex-direction: column; }.action-bar-actions { justify-content: flex-start; }.stats-grid { grid-template-columns: repeat(2, 1fr); }.repo-row { grid-template-columns: 1fr; gap: 15px; }.repo-actions { justify-content: flex-start; }.section-heading { align-items: flex-start; flex-direction: column; }.list-tools { width: 100%; }.search-box { flex: 1; } }
+    @media (max-width: 560px) { .topbar { height: 62px; }.topbar-meta { font-size: 9px; }.topbar-end { gap: 9px; }.page-wrap { width: min(100% - 28px, 1240px); }.stats-grid { grid-template-columns: 1fr 1fr; }.random-card { padding: 18px; }.random-header { align-items: flex-start; flex-direction: column; }.random-result { align-items: flex-start; }.random-result .decision-pill { margin-left: 0; }.random-actions { flex-wrap: wrap; }.list-tools { flex-direction: column; }.search-box { width: auto; }.list-tools select { min-height: 36px; }.repo-row { padding: 18px 0; }.repo-copy > p { white-space: normal; }.footer { width: min(100% - 28px, 1240px); flex-direction: column; gap: 8px; } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+    </style>
     <title>Review Stars</title>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/main.js"></script>
+    <script>
+    const messages = {
+      'zh-CN': {
+        connected: 'GitHub 已连接',
+        waitingGithub: '等待 GitHub 配置',
+        reposLoaded: '个仓库已加载',
+        noReposLoaded: '尚未加载仓库',
+        sync: '↻ 同步仓库', syncing: '同步中…', startAI: '开始 AI 评审', rerunAI: '更新 AI 评审',
+        viewingAI: 'AI 正在查看…', continueAI: '继续 AI 评审（跳过已有）', waitingAI: '等待 AI…', aiCompleteButton: 'AI 评审已完成', modelSuffix: '· OpenAI 兼容接口',
+        syncNotice: '已从 GitHub 同步 {{count}} 个仓库，已有评审已复用',
+        aiNotice: '已完成 {{total}} 个仓库：复用已有评审 {{cached}} 个，AI 本次评审 {{reviewed}} 个',
+        continueNotice: '继续 AI 评审完成：跳过已有 {{cached}} 个，本次新增评审 {{reviewed}} 个',
+        statCollected: '已收藏仓库', statCollectedFoot: '同步自 GitHub', statUnstar: '建议取消 Star', statUnstarAI: 'AI 与规则建议',
+        statReview: '需要人工回顾', statReviewFoot: '值得打开看一眼', statKeep: '建议保留', statKeepFoot: '仍然值得放在收藏夹',
+        randomTitle: '随机回顾仓库', randomEmpty: '点击按钮抽取你的回顾对象', randomCount: '数量', draw: '抽取',
+        repoListTitle: '仓库清单',
+        searchPlaceholder: '搜索仓库…', all: '全部状态', unstarFilter: '建议取消', reviewFilter: '需要回顾', keepFilter: '建议保留',
+        loadingStars: '正在读取本地仓库数据…', noStarsTitle: '还没有同步仓库', noStarsText: '点击上方“同步仓库”从 GitHub 获取全部 Stars。', noMatches: '没有匹配的仓库', noReview: '还没有评审结果', noMatchesText: '试试换一个搜索词或状态筛选。', startReviewHint: '点击上方“开始 AI 评审”。',
+        noDescription: '这个仓库没有提供描述。', archived: '已归档', active: '未归档', fork: 'FORK', starredAt: '收藏于 {{date}}', openRepoTitle: '打开仓库', openStars: '打开 GitHub Stars', unstarAction: '取消 Star',
+        decisionUnstar: '建议取消', decisionReview: '需要回顾', decisionKeep: '建议保留', pendingDecision: '待评审', confirmUnstar: '确定取消 {{repo}} 的 Star 吗？此操作会直接修改 GitHub。', unstarDone: '已取消 {{repo}} 的 Star',
+        unknownDate: '未知', unknownUpdated: '更新时间未知', recentlyUpdated: '最近更新', todayActive: '今天有活动', daysAgo: '{{count}} 天前更新', monthsAgo: '{{count}} 个月前更新', yearsAgo: '{{count}} 年前更新', requestFailed: '请求失败（{{status}}）', switchToLight: '切换到亮色模式', switchToDark: '切换到暗色模式',
+      },
+      en: {
+        connected: 'GitHub connected', waitingGithub: 'Waiting for GitHub configuration', reposLoaded: 'repositories loaded', noReposLoaded: 'No repositories loaded',
+        sync: '↻ Sync repositories', syncing: 'Syncing…', startAI: 'Start AI review', rerunAI: 'Update AI review', viewingAI: 'AI is reviewing…', continueAI: 'Continue AI review (skip existing)', waitingAI: 'Waiting for AI…', aiCompleteButton: 'AI review complete', modelSuffix: '· OpenAI-compatible API',
+        syncNotice: 'Synced {{count}} repositories from GitHub; existing reviews were reused', aiNotice: 'Finished {{total}} repositories: {{rules}} matched rules, reused {{cached}} reviews, and added {{reviewed}} AI reviews', continueNotice: 'AI review continued: {{rules}} matched rules, skipped {{cached}} existing reviews, and added {{reviewed}} new reviews',
+        statCollected: 'Starred repositories', statCollectedFoot: 'Synced from GitHub', statUnstar: 'Suggested to unstar', statUnstarAI: 'AI and rule recommendations', statReview: 'Needs a human look', statReviewFoot: 'Worth opening once', statKeep: 'Suggested to keep', statKeepFoot: 'Still useful in your collection',
+        randomTitle: 'Random repository recall', randomEmpty: 'Pick your next repositories to revisit', randomCount: 'Count', draw: 'Pick', repoListTitle: 'Repository list',
+        searchPlaceholder: 'Search repositories…', all: 'All statuses', unstarFilter: 'Suggested to unstar', reviewFilter: 'Needs review', keepFilter: 'Suggested to keep', loadingStars: 'Reading local repository data…', noStarsTitle: 'No repositories synced', noStarsText: 'Click “Sync repositories” above to load all of your GitHub Stars.', noMatches: 'No matching repositories', noReview: 'No review results yet', noMatchesText: 'Try another search term or status filter.', startReviewHint: 'Use “Start AI review” above.',
+        noDescription: 'This repository has no description.', archived: 'ARCHIVED', active: 'ACTIVE', fork: 'FORK', starredAt: 'Starred {{date}}', openRepoTitle: 'Open repository', openStars: 'Open GitHub Stars', unstarAction: 'Unstar', decisionUnstar: 'Suggested to unstar', decisionReview: 'Needs review', decisionKeep: 'Suggested to keep', pendingDecision: 'Pending review', confirmUnstar: 'Unstar {{repo}}? This will modify GitHub directly.', unstarDone: 'Unstarred {{repo}}',
+        unknownDate: 'Unknown', unknownUpdated: 'Update date unknown', recentlyUpdated: 'Recently updated', todayActive: 'Active today', daysAgo: 'Updated {{count}} days ago', monthsAgo: 'Updated {{count}} months ago', yearsAgo: 'Updated {{count}} years ago', requestFailed: 'Request failed ({{status}})', switchToLight: 'Switch to light mode', switchToDark: 'Switch to dark mode',
+      },
+    }
+
+    const state = {
+      language: 'zh-CN',
+      themeMode: 'system',
+      systemDark: false,
+      colorSchemeMedia: null,
+      stars: [],
+      reviews: [],
+      stats: { total: 0, unstar: 0, review: 0, keep: 0 },
+      health: null,
+      aiComplete: false,
+      randomRepos: [],
+      randomCount: 1,
+      randomizing: false,
+      loadingStars: false,
+      syncing: false,
+      reviewing: false,
+      initializing: true,
+      busyRepo: '',
+      error: '',
+      errorLink: '',
+      warning: '',
+      notice: '',
+      query: '',
+      filter: 'all',
+    }
+
+    const app = document.querySelector('#app')
+
+    function t(key, variables = {}) {
+      const dictionary = messages[state.language] || messages['zh-CN']
+      const template = dictionary[key] || messages['zh-CN'][key] || key
+      return Object.entries(variables).reduce((result, [name, value]) => result.replaceAll(`{{${name}}}`, String(value)), template)
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;')
+    }
+
+    function safeURL(value) {
+      try {
+        const url = new URL(value, window.location.origin)
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '#'
+      } catch {
+        return '#'
+      }
+    }
+
+    function isDarkTheme() {
+      return state.themeMode === 'dark' || (state.themeMode === 'system' && state.systemDark)
+    }
+
+    function applyTheme() {
+      const root = document.documentElement
+      root.classList.toggle('theme-light', state.themeMode === 'light')
+      root.classList.toggle('theme-dark', state.themeMode === 'dark')
+      root.style.colorScheme = state.themeMode === 'system' ? 'light dark' : state.themeMode
+      const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]')
+      if (colorSchemeMeta) colorSchemeMeta.content = state.themeMode === 'system' ? 'light dark' : state.themeMode
+      const themeColorMeta = document.querySelector('meta[name="theme-color"]')
+      if (themeColorMeta) themeColorMeta.content = isDarkTheme() ? '#0d1117' : '#f6f8fa'
+    }
+
+    function initTheme() {
+      const saved = window.localStorage.getItem('review-stars-theme')
+      state.themeMode = saved === 'light' || saved === 'dark' ? saved : 'system'
+      state.colorSchemeMedia = window.matchMedia('(prefers-color-scheme: dark)')
+      state.systemDark = state.colorSchemeMedia.matches
+      state.colorSchemeMedia.addEventListener('change', event => {
+        state.systemDark = event.matches
+        if (state.themeMode === 'system') applyTheme()
+        renderHeader()
+      })
+      applyTheme()
+    }
+
+    function toggleTheme() {
+      state.themeMode = isDarkTheme() ? 'light' : 'dark'
+      window.localStorage.setItem('review-stars-theme', state.themeMode)
+      applyTheme()
+      renderHeader()
+    }
+
+    function renderShell() {
+      app.innerHTML = `
+        <div class="app-shell">
+          <header class="topbar">
+            <a class="brand" href="/">
+              <span class="brand-star" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m12.672.668 3.059 6.197 6.838.993a.75.75 0 0 1 .416 1.28l-4.948 4.823 1.168 6.812a.75.75 0 0 1-1.088.79L12 18.347l-6.116 3.216a.75.75 0 0 1-1.088-.791l1.168-6.811-4.948-4.823a.749.749 0 0 1 .416-1.279l6.838-.994L11.327.668a.75.75 0 0 1 1.345 0Z"/></svg></span>
+              <span class="brand-label">Review</span><span class="brand-ai">Stars</span>
+            </a>
+            <div class="topbar-end">
+              <button class="theme-toggle" type="button" data-action="toggle-theme"></button>
+              <div class="topbar-meta"><span id="live-dot" class="live-dot"></span><span id="github-status"></span></div>
+            </div>
+          </header>
+
+          <main class="page-wrap">
+            <h1 class="visually-hidden">Review Stars</h1>
+            <section class="action-bar" aria-label="Actions">
+              <div class="action-bar-meta"><strong id="repo-count"></strong><span id="model-note" class="model-note"></span></div>
+              <div id="action-buttons" class="action-bar-actions"></div>
+            </section>
+
+            <div id="alerts" aria-live="polite"></div>
+            <section id="stats-grid" class="stats-grid" aria-label="Repository statistics"></section>
+
+            <section class="focus-grid">
+              <article class="random-card">
+                <div class="random-header"><h2 id="random-title"></h2><div class="random-actions"><label class="random-count"><span id="random-count-label"></span><input id="random-count" type="number" min="1" inputmode="numeric" /></label><button class="button button-dark" type="button" data-action="pick-random" id="random-button"></button></div></div>
+                <div id="random-content"></div>
+              </article>
+            </section>
+
+            <section class="review-section">
+              <div class="section-heading"><h2 id="repo-list-title"></h2><search class="list-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="repo-search" type="search" /></label><select id="repo-filter"></select></search></div>
+              <div id="repository-content"></div>
+            </section>
+          </main>
+          <footer class="footer"><span>REVIEW/STARS</span><span>GitHub × AI × Telegram</span></footer>
+        </div>`
+    }
+
+    function renderHeader() {
+      const themeButton = document.querySelector('[data-action="toggle-theme"]')
+      if (themeButton) {
+        const label = t(isDarkTheme() ? 'switchToLight' : 'switchToDark')
+        themeButton.textContent = isDarkTheme() ? '☀' : '☾'
+        themeButton.setAttribute('aria-label', label)
+        themeButton.title = label
+      }
+      const dot = document.querySelector('#live-dot')
+      if (dot) dot.classList.toggle('offline', Boolean(state.health && !state.health.github_configured))
+      const status = document.querySelector('#github-status')
+      if (status) status.textContent = state.health?.github_configured ? t('connected') : t('waitingGithub')
+    }
+
+    function renderActions() {
+      const health = state.health || {}
+      const count = document.querySelector('#repo-count')
+      if (count) count.textContent = state.stars.length ? `${formatNumber(state.stars.length)} ${t('reposLoaded')}` : t('noReposLoaded')
+      const model = document.querySelector('#model-note')
+      if (model) model.textContent = `${health.ai_model || 'deepseek-v4-flash'} ${t('modelSuffix')}`
+      const canSync = !state.initializing && !state.syncing && !state.reviewing && !state.busyRepo && health.github_configured
+      const canReview = !state.initializing && !state.reviewing && !state.syncing && !state.busyRepo && health.ai_configured && state.stars.length > 0
+      const canContinue = canReview && !state.aiComplete
+      document.querySelector('#action-buttons').innerHTML = `
+        <button class="button button-outline" type="button" data-action="sync" ${canSync ? '' : 'disabled'}>${state.syncing ? '<span class="spinner"></span>' : ''}${state.syncing ? t('syncing') : t('sync')}</button>
+        <button class="button button-primary" type="button" data-action="review" ${canReview ? '' : 'disabled'}>${state.reviewing ? '<span class="spinner"></span>' : ''}${state.reviewing ? t('viewingAI') : (state.reviews.length ? t('rerunAI') : t('startAI'))}</button>
+        <button class="button button-outline" type="button" data-action="continue-review" ${canContinue ? '' : 'disabled'}>${state.aiComplete ? t('aiCompleteButton') : (state.reviewing ? t('waitingAI') : t('continueAI'))}</button>`
+    }
+
+    function renderAlerts() {
+      const alerts = document.querySelector('#alerts')
+      if (!alerts) return
+      alerts.innerHTML = [
+        state.error && `<div class="alert alert-error"><span aria-hidden="true">!</span><span>${escapeHTML(state.error)}</span>${state.errorLink ? `<a href="${escapeHTML(safeURL(state.errorLink))}" target="_blank" rel="noreferrer noopener">${t('openStars')}</a>` : ''}</div>`,
+        state.warning && `<div class="alert alert-warning"><span aria-hidden="true">△</span><span>${escapeHTML(state.warning)}</span></div>`,
+        state.notice && `<div class="alert alert-success"><span aria-hidden="true">✓</span><span>${escapeHTML(state.notice)}</span></div>`,
+      ].filter(Boolean).join('')
+    }
+
+    function renderStats() {
+      const stats = state.stats
+      document.querySelector('#stats-grid').innerHTML = `
+        <article class="stat-card stat-total"><div class="stat-label">${t('statCollected')}</div><div class="stat-value">${formatNumber(stats.total || state.stars.length)}</div><div class="stat-foot">${t('statCollectedFoot')}</div></article>
+        <article class="stat-card stat-danger"><div class="stat-label">${t('statUnstar')}</div><div class="stat-value">${formatNumber(stats.unstar)}</div><div class="stat-foot">${t('statUnstarAI')}</div></article>
+        <article class="stat-card stat-warm"><div class="stat-label">${t('statReview')}</div><div class="stat-value">${formatNumber(stats.review)}</div><div class="stat-foot">${t('statReviewFoot')}</div></article>
+        <article class="stat-card stat-green"><div class="stat-label">${t('statKeep')}</div><div class="stat-value">${formatNumber(stats.keep)}</div><div class="stat-foot">${t('statKeepFoot')}</div></article>`
+    }
+
+    function renderRandom() {
+      document.querySelector('#random-title').textContent = t('randomTitle')
+      document.querySelector('#random-count-label').textContent = t('randomCount')
+      document.querySelector('#random-count').value = state.randomCount
+      const randomButton = document.querySelector('#random-button')
+      randomButton.textContent = t('draw')
+      randomButton.disabled = state.randomizing
+      const content = document.querySelector('#random-content')
+      if (!state.randomRepos.length) {
+        content.innerHTML = `<div class="random-placeholder"><span aria-hidden="true">✦</span><span>${t('randomEmpty')}</span></div>`
+        return
+      }
+      content.innerHTML = `<div class="random-results">${state.randomRepos.map(repo => `
+        <div class="random-result"><div class="repo-avatar">${escapeHTML(repo.name?.slice(0, 1).toUpperCase())}</div>
+          <div class="random-info"><a href="${escapeHTML(safeURL(repo.html_url))}" target="_blank" rel="noreferrer noopener">${escapeHTML(repo.full_name)}</a><span>${escapeHTML(repo.summary || repo.description || t('noDescription'))}</span></div>
+          <span class="decision-pill ${decisionClass(repo.decision)}">${decisionLabel(repo.decision)}</span>
+        </div>`).join('')}</div>`
+    }
+
+    function renderRepositoryControls() {
+      document.querySelector('#repo-list-title').textContent = t('repoListTitle')
+      const search = document.querySelector('#repo-search')
+      search.placeholder = t('searchPlaceholder')
+      search.setAttribute('aria-label', t('searchPlaceholder'))
+      search.value = state.query
+      const filter = document.querySelector('#repo-filter')
+      filter.innerHTML = `<option value="all">${t('all')}</option><option value="unstar">${t('unstarFilter')}</option><option value="review">${t('reviewFilter')}</option><option value="keep">${t('keepFilter')}</option>`
+      filter.value = state.filter
+      filter.setAttribute('aria-label', t('all'))
+    }
+
+    function visibleReviews() {
+      const reviewByName = new Map(state.reviews.map(review => [repoKey(review.full_name), review]))
+      const source = state.stars.length
+        ? state.stars.map(repo => reviewByName.get(repoKey(repo.full_name)) || {
+            ...repo,
+            decision: 'review',
+            score: 0,
+            summary: t('noReview'),
+            reasons: [t('startReviewHint')],
+          })
+        : state.reviews
+      const needle = state.query.trim().toLowerCase()
+      return source.filter(repo => {
+        const matchesQuery = !needle || [repo.full_name, repo.description, repo.language].filter(Boolean).some(value => value.toLowerCase().includes(needle))
+        const matchesFilter = state.filter === 'all' || repo.decision === state.filter
+        return matchesQuery && matchesFilter
+      })
+    }
+
+    function repoKey(fullName) {
+      return String(fullName || '').trim().toLowerCase()
+    }
+
+    function renderRepositoryContent() {
+      const content = document.querySelector('#repository-content')
+      if (state.loadingStars) {
+        content.innerHTML = `<div class="empty-state"><span class="spinner spinner-dark"></span><p>${t('loadingStars')}</p></div>`
+        return
+      }
+      if (!state.stars.length) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">☆</div><h3>${t('noStarsTitle')}</h3><p>${t('noStarsText')}</p></div>`
+        return
+      }
+      const reviews = visibleReviews()
+      if (!reviews.length) {
+        content.innerHTML = `<div class="empty-state"><div class="empty-icon">⌕</div><h3>${state.reviews.length ? t('noMatches') : t('noReview')}</h3><p>${state.reviews.length ? t('noMatchesText') : t('startReviewHint')}</p></div>`
+        return
+      }
+      content.innerHTML = `<div class="repo-list">${reviews.map(renderRepository).join('')}</div>`
+    }
+
+    function renderRepository(repo) {
+      const archived = repo.archived ? `<span class="tiny-tag">${t('archived')}</span>` : ''
+      const fork = repo.fork ? `<span class="tiny-tag">${t('fork')}</span>` : ''
+      const language = repo.language ? `<span><i class="language-dot"></i>${escapeHTML(repo.language)}</span>` : ''
+      const starredAt = repo.starred_at ? `<span>${t('starredAt', { date: escapeHTML(formatDate(repo.starred_at)) })}</span>` : ''
+      const reasons = (repo.reasons || []).slice(0, 2).map(reason => `<span>${escapeHTML(reason)}</span>`).join('')
+      const actionLabel = state.busyRepo === repo.full_name ? '…' : t('unstarAction')
+      return `<article class="repo-row">
+        <div class="repo-main"><div class="repo-avatar repo-avatar-large">${escapeHTML(repo.name?.slice(0, 1).toUpperCase())}</div><div class="repo-copy">
+          <div class="repo-title-line"><a href="${escapeHTML(safeURL(repo.html_url))}" target="_blank" rel="noreferrer noopener">${escapeHTML(repo.full_name)}</a>${archived}${fork}</div>
+          <p>${escapeHTML(repo.description || t('noDescription'))}</p>
+          <div class="repo-meta">${language}<span>★ ${formatNumber(repo.stargazers_count)}</span><span>${relativeDate(repo.pushed_at)}</span><span class="archive-state${repo.archived ? ' archived' : ''}">${repo.archived ? t('archived') : t('active')}</span>${starredAt}</div>
+        </div></div>
+        <div class="repo-review"><div class="review-topline"><span class="decision-pill ${decisionClass(repo.decision)}">${decisionLabel(repo.decision)}</span><span class="score">${escapeHTML(repo.score)}%</span></div><p class="review-summary">${escapeHTML(repo.summary)}</p><div class="reason-list">${reasons}</div></div>
+        <div class="repo-actions"><a class="icon-button" href="${escapeHTML(safeURL(repo.html_url))}" target="_blank" rel="noreferrer noopener" title="${t('openRepoTitle')}">↗</a><button class="remove-button" type="button" data-action="unstar" data-repo="${escapeHTML(repo.full_name)}" ${state.busyRepo === repo.full_name ? 'disabled' : ''}>${actionLabel}</button></div>
+      </article>`
+    }
+
+    function render() {
+      renderHeader()
+      renderActions()
+      renderAlerts()
+      renderStats()
+      renderRandom()
+      renderRepositoryControls()
+      renderRepositoryContent()
+    }
+
+    function decisionLabel(decision) {
+      return { unstar: t('decisionUnstar'), review: t('decisionReview'), keep: t('decisionKeep') }[decision] || t('pendingDecision')
+    }
+
+    function decisionClass(decision) {
+      return `decision-${['unstar', 'review', 'keep'].includes(decision) ? decision : 'review'}`
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat(state.language === 'en' ? 'en-US' : 'zh-CN').format(value || 0)
+    }
+
+    function formatDate(date) {
+      if (!date) return t('unknownDate')
+      const value = new Date(date)
+      if (Number.isNaN(value.getTime())) return t('unknownDate')
+      return new Intl.DateTimeFormat(state.language === 'en' ? 'en-US' : 'zh-CN', { year: 'numeric', month: 'short', day: 'numeric' }).format(value)
+    }
+
+    function relativeDate(date) {
+      if (!date) return t('unknownDate')
+      const value = new Date(date)
+      if (Number.isNaN(value.getTime()) || value.getUTCFullYear() < 2000) return t('unknownUpdated')
+      const days = Math.floor((Date.now() - value.getTime()) / 86400000)
+      if (days < 0) return t('recentlyUpdated')
+      if (days < 1) return t('todayActive')
+      if (days < 30) return t('daysAgo', { count: days })
+      if (days < 365) return t('monthsAgo', { count: Math.floor(days / 30) })
+      return t('yearsAgo', { count: Math.floor(days / 365) })
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(path, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const requestError = new Error(body.error || t('requestFailed', { status: response.status }))
+        requestError.status = response.status
+        requestError.body = body
+        throw requestError
+      }
+      return body
+    }
+
+    async function loadHealth() {
+      try {
+        const data = await request('/api/health')
+        state.health = data
+        state.language = data.language || 'zh-CN'
+        document.documentElement.lang = state.language === 'en' ? 'en' : 'zh-CN'
+        render()
+      } catch (error) {
+        state.errorLink = ''
+        state.error = error.message
+        render()
+      }
+    }
+
+    async function loadStars() {
+      state.loadingStars = true
+      renderRepositoryContent()
+      try {
+        const data = await request('/api/stars')
+        state.stars = data.repositories || []
+      } catch (error) {
+        state.errorLink = ''
+        state.error = error.message
+      } finally {
+        state.loadingStars = false
+        render()
+      }
+    }
+
+    async function syncStars() {
+      state.syncing = true
+      state.error = ''
+      state.errorLink = ''
+      state.warning = ''
+      state.notice = ''
+      render()
+      try {
+        const data = await request('/api/sync', { method: 'POST' })
+        state.stars = data.repositories || []
+        state.reviews = data.reviews || []
+        state.stats = data.stats || state.stats
+        state.aiComplete = Boolean(data.ai_complete)
+        state.notice = t('syncNotice', { count: state.stars.length })
+      } catch (error) {
+        state.errorLink = ''
+        state.error = error.message
+      } finally {
+        state.syncing = false
+        render()
+      }
+    }
+
+    async function loadExistingReview() {
+      try {
+        const data = await request('/api/review')
+        state.reviews = data.reviews || []
+        state.stats = data.stats || state.stats
+        state.aiComplete = Boolean(data.ai_complete)
+        render()
+      } catch (error) {
+        state.errorLink = ''
+        state.error = error.message
+        render()
+      }
+    }
+
+    async function runAIReview(continuing = false) {
+      state.reviewing = true
+      state.error = ''
+      state.errorLink = ''
+      state.warning = ''
+      state.notice = ''
+      render()
+      try {
+        const queryString = continuing ? '?continue=1' : ''
+        const data = await request(`/api/review${queryString}`, { method: 'POST' })
+        state.reviews = data.reviews || []
+        state.stats = data.stats || state.stats
+        state.aiComplete = Boolean(data.ai_complete)
+        state.warning = data.warning || ''
+        state.notice = continuing
+          ? t('continueNotice', { rules: data.rule_matched_count || 0, cached: data.cached_count || 0, reviewed: data.ai_reviewed_count || 0 })
+          : t('aiNotice', { total: state.stats.total, rules: data.rule_matched_count || 0, cached: data.cached_count || 0, reviewed: data.ai_reviewed_count || 0 })
+      } catch (error) {
+        state.errorLink = ''
+        state.error = error.message
+      } finally {
+        state.reviewing = false
+        render()
+      }
+    }
+
+    async function pickRandom() {
+      if (state.randomizing) return
+      state.randomizing = true
+      state.error = ''
+      state.errorLink = ''
+      const count = Math.max(1, Number(state.randomCount) || 1)
+      state.randomCount = count
+      renderRandom()
+      try {
+        const data = await request(`/api/random?count=${encodeURIComponent(count)}`)
+        state.randomRepos = data.repositories || []
+      } catch (error) {
+        state.errorLink = ''
+        state.error = error.message
+      }
+      state.randomizing = false
+      render()
+    }
+
+    async function unstar(repo) {
+      state.error = ''
+      state.errorLink = ''
+      state.notice = ''
+      if (!window.confirm(t('confirmUnstar', { repo: repo.full_name }))) return
+      state.busyRepo = repo.full_name
+      renderRepositoryContent()
+      try {
+        await request(`/api/stars/${encodeURIComponent(repo.full_name)}`, { method: 'DELETE' })
+        const key = repoKey(repo.full_name)
+        state.stars = state.stars.filter(item => repoKey(item.full_name) !== key)
+        const aiRepo = state.reviews.find(item => repoKey(item.full_name) === key)
+        state.reviews = state.reviews.filter(item => repoKey(item.full_name) !== key)
+        state.randomRepos = state.randomRepos.filter(item => repoKey(item.full_name) !== key)
+        const decision = aiRepo?.decision === 'unstar' ? 'unstar' : aiRepo?.decision === 'keep' ? 'keep' : 'review'
+        state.stats = {
+          ...state.stats,
+          total: Math.max(0, state.stats.total - 1),
+          [decision]: Math.max(0, state.stats[decision] - 1),
+        }
+        state.notice = t('unstarDone', { repo: repo.full_name })
+      } catch (error) {
+        state.error = error.message
+        if (error.status === 403 && error.body?.stars_url) state.errorLink = error.body.stars_url
+      } finally {
+        state.busyRepo = ''
+        render()
+      }
+    }
+
+    app.addEventListener('click', event => {
+      const action = event.target.closest('[data-action]')?.dataset.action
+      if (!action) return
+      if (action === 'toggle-theme') toggleTheme()
+      if (action === 'sync') syncStars()
+      if (action === 'review') runAIReview()
+      if (action === 'continue-review') runAIReview(true)
+      if (action === 'pick-random') pickRandom()
+      if (action === 'unstar') {
+        const repo = state.stars.find(item => item.full_name === event.target.closest('[data-action="unstar"]').dataset.repo)
+        if (repo) unstar(repo)
+      }
+    })
+
+    app.addEventListener('input', event => {
+      if (event.target.id === 'repo-search') {
+        state.query = event.target.value
+        renderRepositoryContent()
+      }
+      if (event.target.id === 'random-count') state.randomCount = event.target.value
+    })
+
+    app.addEventListener('change', event => {
+      if (event.target.id === 'repo-filter') {
+        state.filter = event.target.value
+        renderRepositoryContent()
+      }
+    })
+
+    renderShell()
+    initTheme()
+    render()
+    Promise.all([loadHealth(), loadStars(), loadExistingReview()]).finally(() => {
+      state.initializing = false
+      render()
+    })
+
+    </script>
   </body>
 </html>
